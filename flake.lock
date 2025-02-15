@@ -37,8 +37,8 @@
     "nixpkgs": {
       "locked": {
         "lastModified": 0,
-        "narHash": "sha256-Qw2PwmkXDK8sPQ5YQ/y/icbQ+TYgbxfjhgnkNJyT1X8=",
-        "path": "/nix/store/sbnwhhx7zjp45n53bkmnj4whg79aw8pq-source",
+        "narHash": "sha256-9xim3nJJUFbVbJCz48UP4fGRStVW5nv4VdbimbKxJ3I=",
+        "path": "/nix/store/9xr4v5kw14aqjg77nqfdspfm2fs2m786-source",
         "type": "path"
       },
       "original": {
@@ -66,7 +66,9 @@
       "inputs": {
         "nixpkgs": "nixpkgs",
         "utils": "utils",
-        "zig": "zig"
+        "zig-cli": "zig-cli",
+        "zig-flake": "zig-flake",
+        "zig-sqlite": "zig-sqlite"
       }
     },
     "systems": {
@@ -117,23 +119,55 @@
         "type": "github"
       }
     },
-    "zig": {
+    "zig-cli": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1738011482,
+        "narHash": "sha256-p5uVOyy1o8Jl23apIadmBxc39XfZ9m0RccOC8H0plGg=",
+        "owner": "sam701",
+        "repo": "zig-cli",
+        "rev": "3c51a0496c579d0e6db650da74523f0e0939ba69",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sam701",
+        "repo": "zig-cli",
+        "type": "github"
+      }
+    },
+    "zig-flake": {
       "inputs": {
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1737419334,
-        "narHash": "sha256-xEQ+2zoihSR8TSHH5KMceReUd9Ae2tPNLFoQviGpaAg=",
+        "lastModified": 1739579370,
+        "narHash": "sha256-5lTSBX+G1W0p5D+wWlNL97xqnoUNkxlc7NI92kNCvdQ=",
         "owner": "mitchellh",
         "repo": "zig-overlay",
-        "rev": "11ba4193561b6096b2c72174163940a50251a99c",
+        "rev": "afaae6f3da8839e881c5ae2f8fc09595589c31cc",
         "type": "github"
       },
       "original": {
         "owner": "mitchellh",
         "repo": "zig-overlay",
+        "type": "github"
+      }
+    },
+    "zig-sqlite": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1739531586,
+        "narHash": "sha256-J7gtimFks1UxySoTRJ7BOtoVUzqMsnZume6AeNfdyxA=",
+        "owner": "vrischmann",
+        "repo": "zig-sqlite",
+        "rev": "cd7d1c36ea40c30ecb3dcdf11145f32dfbe5fabf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vrischmann",
+        "repo": "zig-sqlite",
         "type": "github"
       }
     }

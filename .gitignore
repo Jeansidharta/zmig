@@ -3,3 +3,7 @@ zig-cache
 .zig-out
 zig-out
 .direnv
+result
+migrations
+libs/*
+*.sqlite3
