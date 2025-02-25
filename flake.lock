@@ -37,8 +37,8 @@
     "nixpkgs": {
       "locked": {
         "lastModified": 0,
-        "narHash": "sha256-9xim3nJJUFbVbJCz48UP4fGRStVW5nv4VdbimbKxJ3I=",
-        "path": "/nix/store/9xr4v5kw14aqjg77nqfdspfm2fs2m786-source",
+        "narHash": "sha256-SSYxFhqCOb3aiPb6MmN68yEzBIltfom8IgRz7phHscM=",
+        "path": "/nix/store/sbjlznsffq2hi8d44cjwk2mkw0pxy471-source",
         "type": "path"
       },
       "original": {
@@ -65,10 +65,25 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
+        "sqlite-amalgamation": "sqlite-amalgamation",
         "utils": "utils",
         "zig-cli": "zig-cli",
         "zig-flake": "zig-flake",
-        "zig-sqlite": "zig-sqlite"
+        "zig-sqlite": "zig-sqlite",
+        "zon-parser": "zon-parser"
+      }
+    },
+    "sqlite-amalgamation": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1736853748,
+        "narHash": "sha256-RGb3UiOxP4TQ5c2FtGfcBiIK6nvCUGcGCw3bfoVyRpE=",
+        "type": "tarball",
+        "url": "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip"
       }
     },
     "systems": {
@@ -142,11 +157,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1739579370,
-        "narHash": "sha256-5lTSBX+G1W0p5D+wWlNL97xqnoUNkxlc7NI92kNCvdQ=",
+        "lastModified": 1740485530,
+        "narHash": "sha256-PjYwEHq51GVB4ND3z45cxGC59AcK4Yzh9bdfHW569cM=",
         "owner": "mitchellh",
         "repo": "zig-overlay",
-        "rev": "afaae6f3da8839e881c5ae2f8fc09595589c31cc",
+        "rev": "67d4ddec445dd3cb3f7396ca89f00c5f85ed201e",
         "type": "github"
       },
       "original": {
@@ -158,16 +173,31 @@
     "zig-sqlite": {
       "flake": false,
       "locked": {
-        "lastModified": 1739531586,
-        "narHash": "sha256-J7gtimFks1UxySoTRJ7BOtoVUzqMsnZume6AeNfdyxA=",
+        "lastModified": 1739740232,
+        "narHash": "sha256-2hqmEqXrYRKmJ0o1uV0zSJvwSvZWu3PCmXDdeWZ3Oeg=",
         "owner": "vrischmann",
         "repo": "zig-sqlite",
-        "rev": "cd7d1c36ea40c30ecb3dcdf11145f32dfbe5fabf",
+        "rev": "25614ffd27ddda5feb615a78d1c945595c50efaf",
         "type": "github"
       },
       "original": {
         "owner": "vrischmann",
         "repo": "zig-sqlite",
+        "type": "github"
+      }
+    },
+    "zon-parser": {
+      "locked": {
+        "lastModified": 1740377027,
+        "narHash": "sha256-1n5KYYCqqEpGK29ui8xwujrTdwM2aSBX9sFPXAnZP7s=",
+        "owner": "Jeansidharta",
+        "repo": "nix-zon-parser",
+        "rev": "899d76799c003002141411ebef26ee43420b6cb1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Jeansidharta",
+        "repo": "nix-zon-parser",
         "type": "github"
       }
     }

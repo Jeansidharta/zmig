@@ -3,6 +3,13 @@
     utils.url = "github:numtide/flake-utils";
     zig-flake.url = "github:mitchellh/zig-overlay";
 
+    zon-parser.url = "github:Jeansidharta/nix-zon-parser";
+
+    sqlite-amalgamation = {
+      url = "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip";
+      flake = false;
+    };
+
     zig-cli = {
       url = "github:sam701/zig-cli";
       flake = false;
@@ -17,51 +24,57 @@
       self,
       nixpkgs,
       utils,
+      zon-parser,
       zig-flake,
       zig-cli,
       zig-sqlite,
+      sqlite-amalgamation,
     }:
     utils.lib.eachDefaultSystem (
       system:
       let
-        project_name = "zig-mig";
-        project_version = "0.0.1";
-
         pkgs = nixpkgs.legacyPackages.${system};
+        zon = zon-parser.parser (builtins.readFile ./build.zig.zon);
+
+        project_name = zon.name;
+        version = zon.version;
+        deps = pkgs.linkFarm (project_name + "-deps") {
+          ${zon.dependencies.sqlite.hash} = zig-sqlite;
+          ${zon.dependencies.zig-cli.hash} = zig-cli;
+          "1220972595d70da33d69d519392742482cb9762935cecb99924e31f3898d2a330861" = sqlite-amalgamation;
+        };
+
         zig = zig-flake.outputs.packages.${system}.master;
         mkLibsLinkScript = ''
-          rm -rf libs/
-          mkdir -p libs
-          ln -s ${zig-cli} libs/zig-cli
-          ln -s ${zig-sqlite} libs/zig-sqlite
+          rm --force libs
+          ln -s ${deps} libs
         '';
         package = pkgs.stdenv.mkDerivation {
           pname = project_name;
-          version = project_version;
+          version = version;
           src = ./.;
           buildInputs = [
             zig
-            pkgs.which
           ];
 
-          buildPhase = ''
-            # cd $TEMP
-            # cp --no-preserve=mode $src/* . -r
-            ${mkLibsLinkScript}
-
-            zig build \
-              --prefix $out \
-              --release=fast \
-              -Doptimize=ReleaseFast \
-              -Ddynamic-linker=$(cat $NIX_BINTOOLS/nix-support/dynamic-linker) \
-              --cache-dir $TEMP/cache \
-              --global-cache-dir $TEMP/global \
-              --summary all \
-              --color off
-          '';
           meta = {
             mainProgram = "zmig";
           };
+
+          buildPhase = ''
+            # cp --no-preserve=mode $src/* . -r
+            # ${mkLibsLinkScript}
+
+            zig build \
+              --system ${deps} \
+              --prefix $out \
+              --release=safe \
+              -Doptimize=ReleaseSafe \
+              -Ddynamic-linker=$(cat $NIX_BINTOOLS/nix-support/dynamic-linker) \
+              --cache-dir cache \
+              --global-cache-dir global \
+              --summary all
+          '';
         };
       in
       {
@@ -70,8 +83,6 @@
           shellHook = mkLibsLinkScript;
           buildInputs = [
             zig
-            pkgs.sqlite.dev
-            pkgs.gdb
           ];
         };
       }

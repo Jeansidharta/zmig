@@ -35,51 +35,36 @@ const IntermediaryMigrationFilePair = struct {
         stderr: anytype,
     ) !@This() {
         const filename = try alloc.dupe(u8, entryName);
-        var fullNameIter = std.mem.splitAny(u8, filename, "-.");
-        // Parse timestamp string to u64
-        const timestamp = timestamp: {
-            const str = fullNameIter.next() orelse {
-                try stderr.print(
+        errdefer alloc.free(filename);
+
+        const parsed = utils.parseFileName(filename) catch |e| {
+            switch (e) {
+                error.MissingTimestamp => try stderr.print(
                     "Missing typestamp section in migration file name {s}\n",
                     .{filename},
-                );
-                return error.MissingTimestamp;
-            };
-            break :timestamp std.fmt.parseInt(u64, str, 10) catch |e| {
-                try stderr.print(
-                    "Timestamp {s} is not a valid int: {}\n",
-                    .{ str, e },
-                );
-                return error.InvalidTimestamp;
-            };
+                ),
+                error.MissingName => try stderr.print(
+                    "Missing name section in migration file name {s}\n",
+                    .{filename},
+                ),
+                error.InvalidTimestamp => try stderr.print(
+                    "Invalid timestamp section in filename {s}\n",
+                    .{filename},
+                ),
+                error.InvalidExtension => try stderr.print(
+                    "Invalid extension for file \"{s}\". Should either be .up.sql or .down.sql\n",
+                    .{filename},
+                ),
+            }
+            return e;
         };
-        const migrationName = fullNameIter.next() orelse {
-            try stderr.print(
-                "Missing name section in migration file name {s}\n",
-                .{filename},
-            );
-            return error.MissingName;
-        };
-        var migration: @This() = .{
-            .name = migrationName,
-            .timestamp = timestamp,
-            .upFilename = null,
-            .downFilename = null,
+        return .{
+            .name = parsed.name,
+            .timestamp = parsed.timestamp,
+            .upFilename = if (parsed.typ == .up) filename else null,
+            .downFilename = if (parsed.typ == .down) filename else null,
             .dir = migrationDir,
         };
-        const extension = fullNameIter.rest();
-        if (std.mem.eql(u8, extension, "up.sql")) {
-            migration.upFilename = filename;
-        } else if (std.mem.eql(u8, extension, "down.sql")) {
-            migration.downFilename = filename;
-        } else {
-            try stderr.print(
-                "The extension \"{s}\" for file \"{s}\" should either be .up.sql or .down.sql\n",
-                .{ extension, filename },
-            );
-            return error.InvalidExtension;
-        }
-        return migration;
     }
 };
 
@@ -141,18 +126,16 @@ pub const MigrationFilePair = struct {
         self: @This(),
         alloc: Allocator,
     ) !DbRow {
-        var up_md5: [digest_length]u8 = undefined;
-        var down_md5: [digest_length]u8 = undefined;
-        {
+        const up_md5 = up_md5: {
             const upContents = try self.readUp(alloc);
             defer alloc.free(upContents);
-            std.crypto.hash.Md5.hash(upContents, &up_md5, .{});
-        }
-        {
+            break :up_md5 utils.hashBuf(upContents);
+        };
+        const down_md5 = down_md5: {
             const downContents = try self.readDown(alloc);
             defer alloc.free(downContents);
-            std.crypto.hash.Md5.hash(downContents, &down_md5, .{});
-        }
+            break :down_md5 utils.hashBuf(downContents);
+        };
         return .{
             .name = self.name,
             .timestamp = self.timestamp,
@@ -180,8 +163,7 @@ pub const MigrationFiles = struct {
         self.array.deinit();
     }
 
-    /// Lists all migrations in the MigrationDir and puts them on a PriorityQueue
-    /// The queue has to be deinit
+    /// Lists all migrations in the MigrationDir
     pub fn fromDir(alloc: Allocator, migrationDir: std.fs.Dir, stderr: anytype) !@This() {
         var iter = migrationDir.iterate();
         var intermediaryArray = std.ArrayList(IntermediaryMigrationFilePair).init(alloc);

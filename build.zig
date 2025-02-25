@@ -1,6 +1,39 @@
 const std = @import("std");
 const Import = std.Build.Module.Import;
 
+fn makeMigrationsFile(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) std.Build.LazyPath {
+    const migrationsGenerator_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("./build/make-migrations-file.zig"),
+    });
+    // Allows the migrations build module to access our utils functions
+    migrationsGenerator_mod.addAnonymousImport(
+        "utils",
+        .{
+            .root_source_file = b.path("src/utils.zig"),
+            .target = target,
+            .optimize = optimize,
+        },
+    );
+    const migrationsGenerator = b.addExecutable(.{
+        .name = "migration-generator",
+        .root_module = migrationsGenerator_mod,
+    });
+    const generateMigrationsStep = b.addRunArtifact(migrationsGenerator);
+    const outMigStep = b.step("migrations", "generate migrations zig file");
+    outMigStep.dependOn(&generateMigrationsStep.step);
+
+    _ = generateMigrationsStep.addDepFileOutputArg("deps");
+
+    generateMigrationsStep.addDirectoryArg(.{ .cwd_relative = "./migrations/" });
+    return generateMigrationsStep.addOutputFileArg("migrations.zig");
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -13,12 +46,18 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const lib_mod = b.createModule(.{
+    const migrationsFile = makeMigrationsFile(b, target, optimize);
+    _ = b.addModule("zmig", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
             Import{ .module = sqlite.module("sqlite"), .name = "sqlite" },
+            Import{ .module = b.createModule(.{
+                .root_source_file = migrationsFile,
+                .target = target,
+                .optimize = optimize,
+            }), .name = "built-migrations" },
         },
     });
     const exe_mod = b.createModule(.{
@@ -28,14 +67,9 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             Import{ .module = sqlite.module("sqlite"), .name = "sqlite" },
             Import{ .module = zigcli.module("zig-cli"), .name = "zig-cli" },
-            Import{ .module = lib_mod, .name = "migration_lib" },
         },
     });
-    const lib = b.addStaticLibrary(.{
-        .name = "zmig",
-        .root_module = lib_mod,
-    });
-    b.installArtifact(lib);
+
     const exe = b.addExecutable(.{
         .name = "zmig",
         .root_module = exe_mod,
@@ -48,11 +82,6 @@ pub fn build(b: *std.Build) void {
     }
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
-    const lib_unit_tests = b.addTest(.{
-        .root_module = lib_mod,
-    });
-
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
     const exe_unit_tests = b.addTest(.{
         .root_module = exe_mod,
@@ -60,7 +89,6 @@ pub fn build(b: *std.Build) void {
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
 
     const checkStep = b.step("check", "Make sure it compiles");

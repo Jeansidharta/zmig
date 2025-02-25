@@ -3,25 +3,76 @@ const sqlite = @import("sqlite");
 
 const Allocator = std.mem.Allocator;
 const digest_length = std.crypto.hash.Md5.digest_length;
+pub const HashInt = std.meta.Int(.unsigned, digest_length * 8);
 
 const MigrationDbRows = @import("./migration-db-rows.zig").MigrationDbRows;
 const MigrationFiles = @import("./migration-files.zig").MigrationFiles;
 
-pub fn expectHashBuf(
-    buf: []const u8,
-    hash: []const u8,
-) bool {
-    if (hash.len < digest_length) @panic("MD5 hash has incorrect digest length");
+const ParseFileNameError = error{
+    MissingTimestamp,
+    MissingName,
+    InvalidTimestamp,
+    InvalidExtension,
+};
 
+const ParsedFileName = struct {
+    name: []const u8,
+    timestamp: u64,
+    typ: enum { up, down },
+};
+
+pub const DatabaseMigration = struct {
+    name: []const u8,
+    timestamp: u64,
+    up_md5: HashInt,
+    down_md5: HashInt,
+};
+
+fn splitFileName(filename: []const u8) ParseFileNameError!struct { []const u8, []const u8, []const u8 } {
+    var timestampIter = std.mem.splitScalar(u8, filename, '-');
+    const timestamp = timestampIter.next() orelse return error.MissingTimestamp;
+    var nameIter = std.mem.splitScalar(u8, timestampIter.rest(), '.');
+    const name = nameIter.next() orelse return error.MissingName;
+    const extension = nameIter.rest();
+    return .{ timestamp, name, extension };
+}
+
+pub fn parseFileName(filename: []const u8) ParseFileNameError!ParsedFileName {
+    const timestampStr, const name, const extension = try splitFileName(filename);
+    const timestamp = std.fmt.parseInt(u64, timestampStr, 10) catch return error.InvalidTimestamp;
+    const typ: @FieldType(ParsedFileName, "typ") =
+        if (std.mem.eql(u8, extension, "up.sql"))
+        .up
+    else if (std.mem.eql(u8, extension, "down.sql"))
+        .down
+    else
+        return error.InvalidExtension;
+    return .{
+        .name = name,
+        .timestamp = timestamp,
+        .typ = typ,
+    };
+}
+
+pub fn hashBuf(
+    buf: []const u8,
+) HashInt {
     var md5: [digest_length]u8 = undefined;
     std.crypto.hash.Md5.hash(buf, &md5, .{});
-    return std.mem.eql(u8, &md5, hash);
+    return @bitCast(md5);
+}
+
+pub fn expectHashBuf(
+    buf: []const u8,
+    hash: HashInt,
+) bool {
+    return hashBuf(buf) == hash;
 }
 
 pub fn expectHashFile(
     migrationsDir: std.fs.Dir,
     path: []const u8,
-    hash: []const u8,
+    hash: HashInt,
     alloc: Allocator,
 ) !bool {
     const contents = try migrationsDir.readFileAlloc(alloc, path, 1024 * 1024 * 256);
@@ -53,6 +104,39 @@ pub fn hasMigrationWithName(
     return false;
 }
 
+pub fn createMigrationsTable(db: *sqlite.Db, diags: ?*sqlite.Diagnostics) !void {
+    return db.exec(
+        \\ CREATE TABLE IF NOT EXISTS zmm_migrations (
+        \\   name TEXT NOT NULL,
+        \\   timestamp INTEGER PRIMARY KEY ASC NOT NULL,
+        \\   up_md5 TEXT NOT NULL,
+        \\   down_md5 TEXT NOT NULL
+        \\ ) STRICT;
+    , .{ .diags = diags }, .{});
+}
+
+pub fn insertMigrationIntoTable(
+    db: *sqlite.Db,
+    diags: ?*sqlite.Diagnostics,
+    migration: DatabaseMigration,
+) !void {
+    const upHashBuf: [digest_length]u8 = @bitCast(migration.up_md5);
+    const downHashBuf: [digest_length]u8 = @bitCast(migration.down_md5);
+    return db.exec(
+        \\ INSERT INTO zmm_migrations (
+        \\   name,
+        \\   timestamp,
+        \\   up_md5,
+        \\   down_md5
+        \\ ) VALUES (?, ?, ?, ?);
+    , .{ .diags = diags }, .{
+        migration.name,
+        migration.timestamp,
+        upHashBuf,
+        downHashBuf,
+    });
+}
+
 pub fn openOrCreateDatabase(databasePath: [:0]const u8) !sqlite.Db {
     const stderr = std.io.getStdErr().writer();
     var diags: sqlite.Diagnostics = .{};
@@ -68,14 +152,7 @@ pub fn openOrCreateDatabase(databasePath: [:0]const u8) !sqlite.Db {
         return e;
     };
 
-    db.exec(
-        \\ CREATE TABLE IF NOT EXISTS zmm_migrations (
-        \\   name TEXT NOT NULL,
-        \\   timestamp INTEGER PRIMARY KEY ASC NOT NULL,
-        \\   up_md5 TEXT NOT NULL,
-        \\   down_md5 TEXT NOT NULL
-        \\ ) STRICT;
-    , .{ .diags = &diags }, .{}) catch |e| {
+    createMigrationsTable(&db, &diags) catch |e| {
         try stderr.print("{any}\n", .{diags});
         return e;
     };
@@ -106,14 +183,14 @@ pub fn checkMatchingMigrations(
             return error.NonMatchingMigrations;
         }
         if (ignoreHashes) continue;
-        if (!try expectHashFile(migrationsDir, file.upFilename, &dbRow.up_md5, files.alloc)) {
+        if (!try expectHashFile(migrationsDir, file.upFilename, dbRow.up_md5, files.alloc)) {
             try stderr.print(
                 "Migration \"{s}\" was modified since it was last applied\n",
                 .{file.upFilename},
             );
             return error.NonMatchingMigrations;
         }
-        if (!try expectHashFile(migrationsDir, file.downFilename, &dbRow.down_md5, files.alloc)) {
+        if (!try expectHashFile(migrationsDir, file.downFilename, dbRow.down_md5, files.alloc)) {
             try stderr.print(
                 "Migration \"{s}\" was modified since its up counterpart was applied\n",
                 .{file.name},

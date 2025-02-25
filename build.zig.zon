@@ -2,8 +2,16 @@
     .name = "zig-mig",
     .version = "0.0.1",
     .dependencies = .{
-        .sqlite = .{ .path = "./libs/zig-sqlite" },
-        .@"zig-cli" = .{ .path = "./libs/zig-cli" },
+        // .sqlite = .{ .path = "./libs/zig-sqlite" },
+        // .@"zig-cli" = .{ .path = "./libs/zig-cli" },
+        .sqlite = .{
+            .url = "git+https://github.com/vrischmann/zig-sqlite#cd7d1c36ea40c30ecb3dcdf11145f32dfbe5fabf",
+            .hash = "1220ada9b4c08699ea90f9481e9aa0e320c3aa632d76a930de6fb886d41269e531dc",
+        },
+        .@"zig-cli" = .{
+            .url = "git+https://github.com/sam701/zig-cli#3c51a0496c579d0e6db650da74523f0e0939ba69",
+            .hash = "1220f6f9a6aadef20b6d820226f7076abfd634a71e67aa67ccf770fb8381883853b0",
+        },
     },
     .paths = .{
         "build.zig",

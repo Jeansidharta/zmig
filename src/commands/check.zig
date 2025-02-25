@@ -17,16 +17,6 @@ pub fn run(
     const stderr = std.io.getStdErr().writer();
     const stdout = std.io.getStdOut().writer();
 
-    try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
-    var migrationsDir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
-        try stderr.print(
-            "Failed to open migrations directory at path \"{s}\": {}\n",
-            .{ migrationsDirPath, e },
-        );
-        return e;
-    };
-    defer migrationsDir.close();
-
     var diags: sqlite.Diagnostics = .{};
     var db = sqlite.Db.init(.{
         .diags = &diags,
@@ -53,6 +43,16 @@ pub fn run(
         return error.NoTableFound;
     }
 
+    try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
+    var migrationsDir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
+        try stderr.print(
+            "Failed to open migrations directory at path \"{s}\": {}\n",
+            .{ migrationsDirPath, e },
+        );
+        return e;
+    };
+    defer migrationsDir.close();
+
     var files = try MigrationFiles.fromDir(alloc, migrationsDir, stderr);
     defer files.deinit();
     const rows = try MigrationDbRows.fromDbOldestFirst(alloc, &db, stderr);
@@ -62,10 +62,13 @@ pub fn run(
 
     const remainingPairs = files.array.items.len - rows.migrations.len;
 
-    if (remainingPairs > 0) {
+    if (remainingPairs > 0)
         try stdout.print(
             "{} migration{s} to apply...\n",
             .{ remainingPairs, if (remainingPairs > 1) "s" else "" },
-        );
-    }
+        )
+    else
+        try stdout.print("No migrations to apply\n", .{});
+
+    try stdout.print("Everything is Ok!\n", .{});
 }

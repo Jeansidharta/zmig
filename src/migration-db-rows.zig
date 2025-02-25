@@ -7,8 +7,8 @@ const digest_length = std.crypto.hash.Md5.digest_length;
 pub const DbRow = struct {
     name: []const u8,
     timestamp: u64,
-    up_md5: [digest_length]u8,
-    down_md5: [digest_length]u8,
+    up_md5: utils.HashInt,
+    down_md5: utils.HashInt,
 
     pub fn execDown(
         self: @This(),
@@ -34,7 +34,7 @@ pub const DbRow = struct {
         defer alloc.free(downMigration);
 
         if (!ignoreHash) {
-            if (!utils.expectHashBuf(downMigration, &self.down_md5)) {
+            if (!utils.expectHashBuf(downMigration, self.down_md5)) {
                 try stderr.print(
                     \\Migration {s} was modified after its up counterpart was executed.
                     \\If you wish to continue anyway, add the --ignore-hash-differences flag
@@ -92,21 +92,18 @@ pub const DbRow = struct {
         return db.rowsAffected();
     }
 
+    fn intoDatabaseMigration(self: @This()) utils.DatabaseMigration {
+        return .{
+            .name = self.name,
+            .timestamp = self.timestamp,
+            .up_md5 = self.up_md5,
+            .down_md5 = self.down_md5,
+        };
+    }
+
     pub fn insertIntoDb(self: @This(), db: *sqlite.Db, stderr: anytype) !void {
         var diags: sqlite.Diagnostics = .{};
-        db.exec(
-            \\ INSERT INTO zmm_migrations (
-            \\   name,
-            \\   timestamp,
-            \\   up_md5,
-            \\   down_md5
-            \\ ) VALUES (?, ?, ?, ?);
-        , .{ .diags = &diags }, .{
-            self.name,
-            self.timestamp,
-            self.up_md5,
-            self.down_md5,
-        }) catch |e| {
+        utils.insertMigrationIntoTable(db, &diags, self.intoDatabaseMigration()) catch |e| {
             try stderr.print("{s}\n", .{diags});
             return e;
         };
@@ -135,16 +132,59 @@ pub const MigrationDbRows = struct {
             try stderr.print("{any}\n", .{diags});
             return e;
         };
+        defer stmt.deinit();
 
         var arena = std.heap.ArenaAllocator.init(alloc);
-        const migrations = stmt.all(DbRow, arena.allocator(), .{
-            .diags = &diags,
-        }, .{}) catch |e| {
+        errdefer arena.deinit();
+        // This is because the hashes are stored as strings, not as numbers
+        const IntermediateRow = struct {
+            name: []const u8,
+            timestamp: u64,
+            up_md5: []u8,
+            down_md5: []u8,
+        };
+        var subArena = std.heap.ArenaAllocator.init(arena.allocator());
+        const rows = stmt.all(IntermediateRow, subArena.allocator(), .{ .diags = &diags }, .{}) catch |e| {
             try stderr.print("{any}\n", .{diags});
             return e;
         };
+        defer subArena.deinit();
 
-        return .{ .arena = arena, .migrations = migrations };
+        var list = try std.ArrayList(DbRow).initCapacity(arena.allocator(), rows.len);
+        for (rows) |_row| {
+            const row: IntermediateRow = _row;
+            const up_md5 = if (row.up_md5.len == digest_length)
+                @as(*[digest_length]u8, @ptrCast(row.up_md5.ptr)).*
+            else {
+                try stderr.print(
+                    "While reading row {d}-{s} from database, up migration md5" ++
+                        " is of incorrect length. It should be {} but is {}. Either" ++
+                        " your database is corrupted, or this is a bug in zig-mig",
+                    .{ row.timestamp, row.name, digest_length, row.up_md5.len },
+                );
+                return error.asdsadds;
+            };
+
+            const down_md5 = if (row.down_md5.len == digest_length)
+                @as(*[digest_length]u8, @ptrCast(row.down_md5.ptr)).*
+            else {
+                try stderr.print(
+                    "While reading row {d}-{s} from database, down migration md5" ++
+                        " is of incorrect length. It should be {} but is {}. Either" ++
+                        " your database is corrupted, or this is a bug in zig-mig",
+                    .{ row.timestamp, row.name, digest_length, row.down_md5.len },
+                );
+                return error.asdsadds;
+            };
+            try list.append(.{
+                .name = row.name,
+                .timestamp = row.timestamp,
+                .up_md5 = @bitCast(up_md5),
+                .down_md5 = @bitCast(down_md5),
+            });
+        }
+
+        return .{ .arena = arena, .migrations = list.items };
     }
 
     pub fn fromDbOldestFirst(alloc: Allocator, db: *sqlite.Db, stderr: anytype) !@This() {

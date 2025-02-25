@@ -5,5 +5,5 @@ zig-out
 .direnv
 result
 migrations
-libs/*
+libs
 *.sqlite3
