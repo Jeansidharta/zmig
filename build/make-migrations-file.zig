@@ -101,6 +101,9 @@ pub fn main() !void {
 
     const outputWriter = outputFile.writer();
 
+    try stderr.print("Migrations dir is {s}\n", .{migrationsDirPath});
+
+    try stderr.print("cwd is {s}\n", .{try std.fs.cwd().realpathAlloc(alloc, ".")});
     const dir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print("Failed to open migrations directory: {}\n", .{e});
         return e;

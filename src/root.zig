@@ -3,7 +3,7 @@ const std = @import("std");
 const sqlite = @import("sqlite");
 const utils = @import("./utils.zig");
 
-pub fn applyMigrations(db: *sqlite.Db, diagnostics: ?*sqlite.Diagnostics) void {
+pub fn applyMigrations(db: *sqlite.Db, diagnostics: ?*sqlite.Diagnostics) !void {
     const dummyDiagnostics: sqlite.Diagnostics = .{};
     const diags = diagnostics orelse &dummyDiagnostics;
 
