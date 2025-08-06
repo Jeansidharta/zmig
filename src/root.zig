@@ -4,18 +4,18 @@ const sqlite = @import("sqlite");
 const utils = @import("./utils.zig");
 
 pub fn applyMigrations(db: *sqlite.Db, diagnostics: ?*sqlite.Diagnostics) !void {
-    const dummyDiagnostics: sqlite.Diagnostics = .{};
+    var dummyDiagnostics: sqlite.Diagnostics = .{};
     const diags = diagnostics orelse &dummyDiagnostics;
 
     try utils.createMigrationsTable(db, diags);
 
     var stmt = try db.prepareWithDiags(
         "select * from zmm_migrations ORDER BY timestamp ASC;",
-        .{ .diags = &diags },
+        .{ .diags = diags },
     );
     defer stmt.deinit();
 
-    const dbIter = try stmt.iterator(utils.DatabaseMigration, .{ .diags = diags });
+    var dbIter = try stmt.iterator(utils.DatabaseMigration, .{});
 
     var lastDbIndex: usize = 0;
     while (try dbIter.next(.{})) |_migration| {
