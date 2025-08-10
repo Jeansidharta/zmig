@@ -1,0 +1,21 @@
+.{
+    .name = .simple,
+    .version = "0.0.0",
+    .fingerprint = 0xc17b3d02c9666f06,
+    .minimum_zig_version = "0.14.1",
+    .dependencies = .{
+        .sqlite = .{
+            .url = "git+https://github.com/vrischmann/zig-sqlite#be8b4965b46fc1a7a819bf3cba09f370c0e9c64c",
+            .hash = "sqlite-3.48.0-F2R_a9GLDgAXT-c49TfkFMt6yPOMQAYfp4ig8bRNdZs4",
+        },
+        .zmig = .{
+            .url = "git+https://github.com/Jeansidharta/zmig#0c010d7d37e93a4352e6cc23fd5acd6b6ea4cf00",
+            .hash = "zmig-0.0.1-xy17mO29AACmIrFsxfqZz9yu2sI3si1l711u9rdUW56M",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
