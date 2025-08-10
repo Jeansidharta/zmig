@@ -1,5 +1,6 @@
 const std = @import("std");
 const utils = @import("utils");
+const module_options = @import("options");
 const digest_length = std.crypto.hash.Md5.digest_length;
 
 const HashInt = std.meta.Int(.unsigned, digest_length * 8);
@@ -22,7 +23,7 @@ const File = struct {
             \\    .{{
             \\        .timestamp = {d},
             \\        .name = "{s}",
-            \\        .hash = 0x{x},
+            \\        .up_hash = 0x{x},
             \\        .body =
             \\
         , .{ self.timestamp, self.name, self.hash });
@@ -52,7 +53,7 @@ const Migrations = struct {
             \\pub const Migration = struct {{
             \\    timestamp: u64,
             \\    name: []const u8,
-            \\    hash: u{},
+            \\    up_hash: u{},
             \\    body: []const u8,
             \\}};
             \\pub const MIGRATIONS: []const Migration = &.{{
@@ -64,6 +65,10 @@ const Migrations = struct {
         try writer.writeAll(
             \\};
         );
+    }
+
+    pub fn init(alloc: std.mem.Allocator) @This() {
+        return .{ .arr = .init(alloc) };
     }
 };
 
@@ -85,37 +90,25 @@ pub fn main() !void {
     const stderr = std.io.getStdErr().writer();
 
     const args = try std.process.argsAlloc(alloc);
-    if (args.len != 4) @panic("Wrong number of arguments");
+    if (args.len != 3) @panic("Wrong number of arguments");
 
-    const depsFilePath = args[1];
-    const migrationsDirPath = args[2];
-    const outputFilePath = args[3];
-
-    const depsFile = try std.fs.createFileAbsolute(depsFilePath, .{ .truncate = false });
-    defer depsFile.close();
-    const depsFileWriter = depsFile.writer();
-    try depsFileWriter.print("{s}:", .{outputFilePath});
+    const migrationsDirPath = args[1];
+    const outputFilePath = args[2];
 
     const outputFile = try std.fs.createFileAbsolute(outputFilePath, .{ .truncate = false });
     defer outputFile.close();
 
     const outputWriter = outputFile.writer();
 
-    try stderr.print("Migrations dir is {s}\n", .{migrationsDirPath});
-
-    try stderr.print("cwd is {s}\n", .{try std.fs.cwd().realpathAlloc(alloc, ".")});
     const dir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print("Failed to open migrations directory: {}\n", .{e});
         return e;
     };
 
     var iter = dir.iterate();
-    var files = Migrations{ .arr = .init(alloc) };
+    var files: Migrations = .init(alloc);
     while (try iter.next()) |entry| {
         if (!std.mem.endsWith(u8, entry.name, ".up.sql")) continue;
-        // Add file to dependency list
-        try depsFileWriter.print(" {s}/{s}", .{ migrationsDirPath, entry.name });
-
         const filename = try alloc.dupe(u8, entry.name);
         const parsed = try utils.parseFileName(filename);
         const body = try dir.readFileAlloc(alloc, entry.name, 256 * 1024 * 1024);
@@ -127,8 +120,6 @@ pub fn main() !void {
             .body = body,
         });
     }
-    try depsFileWriter.print("\n", .{});
     std.sort.insertion(File, @constCast(files.arr.items), {}, pairCompare);
     try outputWriter.print("{}", .{files});
-    try stderr.print("{s} ; {s}", .{ outputFilePath, depsFilePath });
 }

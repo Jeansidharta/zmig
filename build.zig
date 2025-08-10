@@ -6,7 +6,7 @@ fn makeMigrationsFile(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) std.Build.LazyPath {
-    const migrationsGenerator_mod = b.createModule(.{
+    const migrationsGenerator_mod = b.addModule("migrations-maker", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("./build/make-migrations-file.zig"),
@@ -28,9 +28,8 @@ fn makeMigrationsFile(
     const outMigStep = b.step("migrations", "generate migrations zig file");
     outMigStep.dependOn(&generateMigrationsStep.step);
 
-    _ = generateMigrationsStep.addDepFileOutputArg("deps");
-
-    generateMigrationsStep.addDirectoryArg(.{ .cwd_relative = "./migrations/" });
+    const write_files_step = b.addNamedWriteFiles("clone_migrations");
+    generateMigrationsStep.addDirectoryArg(write_files_step.getDirectory());
     return generateMigrationsStep.addOutputFileArg("migrations.zig");
 }
 
@@ -42,7 +41,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const zigcli = b.dependency("zig-cli", .{
+    const zigcli = b.dependency("cli", .{
         .target = target,
         .optimize = optimize,
     });
@@ -60,13 +59,13 @@ pub fn build(b: *std.Build) void {
             }), .name = "built-migrations" },
         },
     });
-    const exe_mod = b.createModule(.{
+    const exe_mod = b.addModule("zmig-cli", .{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
             Import{ .module = sqlite.module("sqlite"), .name = "sqlite" },
-            Import{ .module = zigcli.module("zig-cli"), .name = "zig-cli" },
+            Import{ .module = zigcli.module("cli"), .name = "cli" },
         },
     });
 
@@ -80,7 +79,7 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-    const run_step = b.step("run", "Run the app");
+    const run_step = b.step("zmig", "Invokes the zmig tool");
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{

@@ -1,8 +1,6 @@
 {
   inputs = {
     utils.url = "github:numtide/flake-utils";
-    zig-flake.url = "github:mitchellh/zig-overlay";
-
     zon-parser.url = "github:Jeansidharta/nix-zon-parser";
 
     sqlite-amalgamation = {
@@ -25,7 +23,6 @@
       nixpkgs,
       utils,
       zon-parser,
-      zig-flake,
       zig-cli,
       zig-sqlite,
       sqlite-amalgamation,
@@ -40,11 +37,10 @@
         version = zon.version;
         deps = pkgs.linkFarm (project_name + "-deps") {
           ${zon.dependencies.sqlite.hash} = zig-sqlite;
-          ${zon.dependencies.zig-cli.hash} = zig-cli;
+          ${zon.dependencies.cli.hash} = zig-cli;
           "1220972595d70da33d69d519392742482cb9762935cecb99924e31f3898d2a330861" = sqlite-amalgamation;
         };
 
-        zig = zig-flake.outputs.packages.${system}.master;
         mkLibsLinkScript = ''
           rm --force libs
           ln -s ${deps} libs
@@ -54,7 +50,7 @@
           version = version;
           src = ./.;
           buildInputs = [
-            zig
+            pkgs.zig
           ];
 
           meta = {
@@ -82,7 +78,8 @@
         devShell = pkgs.mkShell {
           shellHook = mkLibsLinkScript;
           buildInputs = [
-            zig
+            pkgs.zig
+            pkgs.zls
           ];
         };
       }

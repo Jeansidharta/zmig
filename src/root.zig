@@ -1,9 +1,17 @@
-const migs = @import("built-migrations");
+const builtin_migrations = @import("built-migrations");
 const std = @import("std");
 const sqlite = @import("sqlite");
 const utils = @import("./utils.zig");
 
-pub fn applyMigrations(db: *sqlite.Db, diagnostics: ?*sqlite.Diagnostics) !void {
+const Options = struct {
+    checkHash: bool = false,
+    checkName: bool = false,
+};
+
+pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: Options, diagnostics: ?*sqlite.Diagnostics) !void {
+    var arenaAlloc = std.heap.ArenaAllocator.init(childAlloc);
+    defer arenaAlloc.deinit();
+
     var dummyDiagnostics: sqlite.Diagnostics = .{};
     const diags = diagnostics orelse &dummyDiagnostics;
 
@@ -17,31 +25,36 @@ pub fn applyMigrations(db: *sqlite.Db, diagnostics: ?*sqlite.Diagnostics) !void 
 
     var dbIter = try stmt.iterator(utils.DatabaseMigration, .{});
 
-    var lastDbIndex: usize = 0;
-    while (try dbIter.next(.{})) |_migration| {
-        const migration: utils.DatabaseMigration = _migration;
+    var last_db_index: usize = 0;
+    while (try dbIter.nextAlloc(arenaAlloc.allocator(), .{})) |_migration| {
+        const db_migration: utils.DatabaseMigration = _migration;
 
-        const file = if (lastDbIndex >= migs.MIGRATIONS.len)
+        const file = if (last_db_index >= builtin_migrations.MIGRATIONS.len)
             return error.MissingMigrationFiles
         else
-            migs.MIGRATIONS[lastDbIndex];
+            builtin_migrations.MIGRATIONS[last_db_index];
 
-        if (file.timestamp != migration.timestamp)
+        if (options.checkName and file.timestamp != db_migration.timestamp)
             return error.MigrationsTimestampDontMatch
-        else if (file.name != migration.name)
+        else if (options.checkName and !std.mem.eql(u8, file.name, db_migration.name))
             return error.MigrationsNameDontMatch
-        else if (file.hash != migration.up_md5)
+        else if (options.checkHash and file.up_hash != db_migration.up_md5)
             return error.MigrationsHashDontMatch;
 
-        lastDbIndex += 1;
+        last_db_index += 1;
     }
 
-    for (migs.MIGRATIONS) |migration| {
+    for (builtin_migrations.MIGRATIONS[last_db_index..]) |migration| {
         const query = migration.body;
 
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
         try db.execDynamic(query, .{ .diags = diags }, .{});
-        utils.insertMigrationIntoTable(db, diags, migration);
+        try utils.insertMigrationIntoTable(db, diags, .{
+            .name = migration.name,
+            .timestamp = migration.timestamp,
+            .up_md5 = migration.up_hash,
+            .down_md5 = 0,
+        });
         try db.exec("COMMIT TRANSACTION;", .{}, .{});
     }
 }

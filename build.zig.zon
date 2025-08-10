@@ -1,21 +1,21 @@
 .{
-    .name = "zig-mig",
+    .name = .zmig,
     .version = "0.0.1",
+    .fingerprint = 0x6515c646e96b883f,
     .dependencies = .{
-        // .sqlite = .{ .path = "./libs/zig-sqlite" },
-        // .@"zig-cli" = .{ .path = "./libs/zig-cli" },
         .sqlite = .{
-            .url = "git+https://github.com/vrischmann/zig-sqlite#cd7d1c36ea40c30ecb3dcdf11145f32dfbe5fabf",
-            .hash = "1220ada9b4c08699ea90f9481e9aa0e320c3aa632d76a930de6fb886d41269e531dc",
+            .url = "git+https://github.com/vrischmann/zig-sqlite#be8b4965b46fc1a7a819bf3cba09f370c0e9c64c",
+            .hash = "sqlite-3.48.0-F2R_a9GLDgAXT-c49TfkFMt6yPOMQAYfp4ig8bRNdZs4",
         },
-        .@"zig-cli" = .{
-            .url = "git+https://github.com/sam701/zig-cli#3c51a0496c579d0e6db650da74523f0e0939ba69",
-            .hash = "1220f6f9a6aadef20b6d820226f7076abfd634a71e67aa67ccf770fb8381883853b0",
+        .cli = .{
+            .url = "git+https://github.com/sam701/zig-cli#bdaab80c0f24624cb4e8b80bb7b34957263f67b8",
+            .hash = "12202e1a316ea25c6c9b64a4372b8c56a93849a62bc338ace634e9fa175181632512",
         },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
+        "build",
     },
 }

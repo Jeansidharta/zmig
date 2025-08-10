@@ -1,5 +1,5 @@
 const std = @import("std");
-const cli = @import("zig-cli");
+const cli = @import("cli");
 
 const commandNewMigration = @import("./commands/new-migration.zig");
 const commandUp = @import("./commands/up.zig");
