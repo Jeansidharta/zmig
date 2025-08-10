@@ -1,36 +1,41 @@
 const std = @import("std");
-const Import = std.Build.Module.Import;
 
+/// This will invoke the `build/make-migrations-file.zig` script over all
+/// of the provided migrations, and return a LazyPath to a zig source
+/// file containing the result.
 fn makeMigrationsFile(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) std.Build.LazyPath {
-    const migrationsGenerator_mod = b.addModule("migrations-maker", .{
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("./build/make-migrations-file.zig"),
-    });
-    // Allows the migrations build module to access our utils functions
-    migrationsGenerator_mod.addAnonymousImport(
-        "utils",
-        .{
-            .root_source_file = b.path("src/utils.zig"),
-            .target = target,
-            .optimize = optimize,
-        },
+    const generate_step = b.addRunArtifact(
+        b.addExecutable(.{
+            .name = "migration-generator",
+            .root_module = b.createModule(.{
+                .target = target,
+                .optimize = optimize,
+                .root_source_file = b.path("./build/make-migrations-file.zig"),
+                .imports = &.{
+                    .{
+                        // Allows the migrations build module to access our utils functions
+                        .name = "utils",
+                        .module = b.createModule(.{
+                            .root_source_file = b.path("src/utils.zig"),
+                            .target = target,
+                            .optimize = optimize,
+                        }),
+                    },
+                },
+            }),
+        }),
     );
-    const migrationsGenerator = b.addExecutable(.{
-        .name = "migration-generator",
-        .root_module = migrationsGenerator_mod,
-    });
-    const generateMigrationsStep = b.addRunArtifact(migrationsGenerator);
-    const outMigStep = b.step("migrations", "generate migrations zig file");
-    outMigStep.dependOn(&generateMigrationsStep.step);
 
+    // Having a named WriteFiles step allows us to easily access
+    // it later from upper modules (modules that import this one)
     const write_files_step = b.addNamedWriteFiles("clone_migrations");
-    generateMigrationsStep.addDirectoryArg(write_files_step.getDirectory());
-    return generateMigrationsStep.addOutputFileArg("migrations.zig");
+
+    generate_step.addDirectoryArg(write_files_step.getDirectory());
+    return generate_step.addOutputFileArg("migrations.zig");
 }
 
 pub fn build(b: *std.Build) void {
@@ -45,15 +50,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const migrationsFile = makeMigrationsFile(b, target, optimize);
     _ = b.addModule("zmig", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            Import{ .module = sqlite.module("sqlite"), .name = "sqlite" },
-            Import{ .module = b.createModule(.{
-                .root_source_file = migrationsFile,
+            .{ .module = sqlite.module("sqlite"), .name = "sqlite" },
+            .{ .module = b.createModule(.{
+                .root_source_file = makeMigrationsFile(b, target, optimize),
                 .target = target,
                 .optimize = optimize,
             }), .name = "built-migrations" },
@@ -64,8 +68,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            Import{ .module = sqlite.module("sqlite"), .name = "sqlite" },
-            Import{ .module = zigcli.module("cli"), .name = "cli" },
+            .{ .module = sqlite.module("sqlite"), .name = "sqlite" },
+            .{ .module = zigcli.module("cli"), .name = "cli" },
         },
     });
 
