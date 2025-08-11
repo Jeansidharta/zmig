@@ -61,7 +61,7 @@ const Migrations = struct {
             \\    timestamp: u64,
             \\    name: []const u8,
             \\    up_hash: u{},
-            \\    body: []const u8,
+            \\    body: [:0]const u8,
             \\}};
             \\pub const MIGRATIONS: []const Migration = &.{{
             \\

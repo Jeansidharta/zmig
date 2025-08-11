@@ -8,6 +8,17 @@ const Options = struct {
     checkName: bool = false,
 };
 
+/// This is here because the default implementation of sqlite.exec in the sqlite library
+/// only executes one statement out of the query. Migrations usually have multiple statements,
+/// so we need to use the raw c interface to use the function we want.
+fn executeScript(db: *sqlite.Db, sql: []const u8, diags: *sqlite.Diagnostics) !void {
+    const ret = sqlite.c.sqlite3_exec(db.db, sql.ptr, null, null, null);
+    if (ret != sqlite.c.SQLITE_OK) {
+        diags.err = db.getDetailedError();
+        return sqlite.errorFromResultCode(ret);
+    }
+}
+
 pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: Options, diagnostics: ?*sqlite.Diagnostics) !void {
     var arenaAlloc = std.heap.ArenaAllocator.init(childAlloc);
     defer arenaAlloc.deinit();
@@ -48,7 +59,8 @@ pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: O
         const query = migration.body;
 
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
-        try db.execDynamic(query, .{ .diags = diags }, .{});
+        try executeScript(db, query, diags);
+        // try db.execDynamic(query, .{ .diags = diags }, .{});
         try utils.insertMigrationIntoTable(db, diags, .{
             .name = migration.name,
             .timestamp = migration.timestamp,
