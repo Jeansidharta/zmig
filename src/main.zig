@@ -180,5 +180,5 @@ pub fn main() !void {
     // It'd be good to investigate why, but for now, leaking this is no big deal.
     // defer runner.deinit();
 
-    try runner.run(&app);
+    _ = runner.run(&app) catch {};
 }

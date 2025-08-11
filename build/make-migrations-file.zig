@@ -29,7 +29,14 @@ const File = struct {
         , .{ self.timestamp, self.name, self.hash });
         var iter = std.mem.splitScalar(u8, self.body, '\n');
         while (iter.next()) |line| {
-            try writer.print("        \\\\{s}\n", .{line});
+            try writer.writeAll("        \\\\");
+            var tab_splits = std.mem.splitScalar(u8, line, '\t');
+            try writer.writeAll(tab_splits.next().?);
+            while (tab_splits.next()) |split| {
+                try writer.writeAll("  ");
+                try writer.writeAll(split);
+            }
+            try writer.writeByte('\n');
         }
 
         try writer.print(

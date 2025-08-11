@@ -20,8 +20,8 @@ will also run all migrations you wrote when developing it.
       .target = target,
       .optimize = optimize,
    });
-   // Note: exe is your main application executable
-   exe.root_module.addImport("zmig", zmig.module("zmig"));
+   // Note: exe is your main application executable module
+   exe_mod.root_module.addImport("zmig", zmig.module("zmig"));
    // ... Remaining things in you build.zig file...
    ```
 
