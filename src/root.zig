@@ -57,6 +57,6 @@ pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: O
             .up_md5 = .{ .data = &@as([16]u8, @bitCast(migration.up_hash)) },
             .down_md5 = .{ .data = &@as([16]u8, @bitCast(@as(u128, 0))) },
         });
-        try db.exec("COMMIT TANSACTION;", .{}, .{});
+        try db.exec("COMMIT TRANSACTION;", .{}, .{});
     }
 }
