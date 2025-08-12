@@ -8,17 +8,6 @@ const Options = struct {
     checkName: bool = false,
 };
 
-/// This is here because the default implementation of sqlite.exec in the sqlite library
-/// only executes one statement out of the query. Migrations usually have multiple statements,
-/// so we need to use the raw c interface to use the function we want.
-fn executeScript(db: *sqlite.Db, sql: []const u8, diags: *sqlite.Diagnostics) !void {
-    const ret = sqlite.c.sqlite3_exec(db.db, sql.ptr, null, null, null);
-    if (ret != sqlite.c.SQLITE_OK) {
-        diags.err = db.getDetailedError();
-        return sqlite.errorFromResultCode(ret);
-    }
-}
-
 pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: Options, diagnostics: ?*sqlite.Diagnostics) !void {
     var arenaAlloc = std.heap.ArenaAllocator.init(childAlloc);
     defer arenaAlloc.deinit();
@@ -49,7 +38,7 @@ pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: O
             return error.MigrationsTimestampDontMatch
         else if (options.checkName and !std.mem.eql(u8, file.name, db_migration.name))
             return error.MigrationsNameDontMatch
-        else if (options.checkHash and file.up_hash != db_migration.up_md5)
+        else if (options.checkHash and file.up_hash != @as(u128, @bitCast(db_migration.up_md5.data[0..16].*)))
             return error.MigrationsHashDontMatch;
 
         last_db_index += 1;
@@ -59,14 +48,15 @@ pub fn applyMigrations(db: *sqlite.Db, childAlloc: std.mem.Allocator, options: O
         const query = migration.body;
 
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
-        try executeScript(db, query, diags);
-        // try db.execDynamic(query, .{ .diags = diags }, .{});
+        db.execMulti(query, .{ .diags = diags }) catch |e| {
+            if (e != error.EmptyQuery) return e;
+        };
         try utils.insertMigrationIntoTable(db, diags, .{
             .name = migration.name,
             .timestamp = migration.timestamp,
-            .up_md5 = migration.up_hash,
-            .down_md5 = 0,
+            .up_md5 = .{ .data = &@as([16]u8, @bitCast(migration.up_hash)) },
+            .down_md5 = .{ .data = &@as([16]u8, @bitCast(@as(u128, 0))) },
         });
-        try db.exec("COMMIT TRANSACTION;", .{}, .{});
+        try db.exec("COMMIT TANSACTION;", .{}, .{});
     }
 }

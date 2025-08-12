@@ -96,8 +96,8 @@ pub const DbRow = struct {
         return .{
             .name = self.name,
             .timestamp = self.timestamp,
-            .up_md5 = self.up_md5,
-            .down_md5 = self.down_md5,
+            .up_md5 = .{ .data = &@as([digest_length]u8, @bitCast(self.up_md5)) },
+            .down_md5 = .{ .data = &@as([digest_length]u8, @bitCast(self.down_md5)) },
         };
     }
 

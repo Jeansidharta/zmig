@@ -24,8 +24,8 @@ const ParsedFileName = struct {
 pub const DatabaseMigration = struct {
     name: []const u8,
     timestamp: u64,
-    up_md5: HashInt,
-    down_md5: HashInt,
+    up_md5: sqlite.Blob,
+    down_md5: sqlite.Blob,
 };
 
 fn splitFileName(filename: []const u8) ParseFileNameError!struct { []const u8, []const u8, []const u8 } {
@@ -120,8 +120,8 @@ pub fn insertMigrationIntoTable(
     diags: ?*sqlite.Diagnostics,
     migration: DatabaseMigration,
 ) !void {
-    const upHashBuf: [digest_length]u8 = @bitCast(migration.up_md5);
-    const downHashBuf: [digest_length]u8 = @bitCast(migration.down_md5);
+    const upHashBuf: [digest_length]u8 =  @bitCast(migration.up_md5.data[0..digest_length].*);
+    const downHashBuf: [digest_length]u8 = @bitCast(migration.down_md5.data[0..digest_length].*);
     return db.exec(
         \\ INSERT INTO zmm_migrations (
         \\   name,
