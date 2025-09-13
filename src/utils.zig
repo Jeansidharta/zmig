@@ -42,11 +42,11 @@ pub fn parseFileName(filename: []const u8) ParseFileNameError!ParsedFileName {
     const timestamp = std.fmt.parseInt(u64, timestampStr, 10) catch return error.InvalidTimestamp;
     const typ: @FieldType(ParsedFileName, "typ") =
         if (std.mem.eql(u8, extension, "up.sql"))
-        .up
-    else if (std.mem.eql(u8, extension, "down.sql"))
-        .down
-    else
-        return error.InvalidExtension;
+            .up
+        else if (std.mem.eql(u8, extension, "down.sql"))
+            .down
+        else
+            return error.InvalidExtension;
     return .{
         .name = name,
         .timestamp = timestamp,
@@ -75,7 +75,7 @@ pub fn expectHashFile(
     hash: HashInt,
     alloc: Allocator,
 ) !bool {
-    const contents = try migrationsDir.readFileAlloc(alloc, path, 1024 * 1024 * 256);
+    const contents = try migrationsDir.readFileAlloc(path, alloc, @enumFromInt(1024 * 1024 * 256));
     defer alloc.free(contents);
     return expectHashBuf(contents, hash);
 }
@@ -92,7 +92,7 @@ pub fn hasMigrationWithName(
         if (entry.kind != .file and entry.kind != .sym_link) continue;
 
         var entryNameIter = std.mem.splitAny(u8, entry.name, "-.");
-        // Skip the timestamp section of the entryy name
+        // Skip the timestamp section of the entry name
         _ = entryNameIter.next();
         const entryNameOpt = entryNameIter.next();
         if (entryNameOpt == null) {
@@ -109,8 +109,8 @@ pub fn createMigrationsTable(db: *sqlite.Db, diags: ?*sqlite.Diagnostics) !void 
         \\ CREATE TABLE IF NOT EXISTS zmm_migrations (
         \\   name TEXT NOT NULL,
         \\   timestamp INTEGER PRIMARY KEY ASC NOT NULL,
-        \\   up_md5 TEXT NOT NULL,
-        \\   down_md5 TEXT NOT NULL
+        \\   up_md5 BLOB NOT NULL,
+        \\   down_md5 BLOB NOT NULL
         \\ ) STRICT;
     , .{ .diags = diags }, .{});
 }
@@ -120,8 +120,8 @@ pub fn insertMigrationIntoTable(
     diags: ?*sqlite.Diagnostics,
     migration: DatabaseMigration,
 ) !void {
-    const upHashBuf: [digest_length]u8 =  @bitCast(migration.up_md5.data[0..digest_length].*);
-    const downHashBuf: [digest_length]u8 = @bitCast(migration.down_md5.data[0..digest_length].*);
+    const upHashBuf = migration.up_md5.data[0..digest_length];
+    const downHashBuf = migration.down_md5.data[0..digest_length];
     return db.exec(
         \\ INSERT INTO zmm_migrations (
         \\   name,
@@ -132,30 +132,22 @@ pub fn insertMigrationIntoTable(
     , .{ .diags = diags }, .{
         migration.name,
         migration.timestamp,
-        upHashBuf,
-        downHashBuf,
+        sqlite.Blob{ .data = upHashBuf },
+        sqlite.Blob{ .data = downHashBuf },
     });
 }
 
-pub fn openOrCreateDatabase(databasePath: [:0]const u8) !sqlite.Db {
-    const stderr = std.io.getStdErr().writer();
-    var diags: sqlite.Diagnostics = .{};
-    var db = sqlite.Db.init(.{
-        .diags = &diags,
+pub fn openOrCreateDatabase(databasePath: [:0]const u8, diags: ?*sqlite.Diagnostics) !sqlite.Db {
+    var db = try sqlite.Db.init(.{
+        .diags = diags,
         .mode = .{ .File = databasePath },
         .open_flags = .{
             .create = true,
             .write = true,
         },
-    }) catch |e| {
-        try stderr.print("{any}\n", .{diags});
-        return e;
-    };
+    });
 
-    createMigrationsTable(&db, &diags) catch |e| {
-        try stderr.print("{any}\n", .{diags});
-        return e;
-    };
+    try createMigrationsTable(&db, diags);
 
     return db;
 }
@@ -163,7 +155,7 @@ pub fn openOrCreateDatabase(databasePath: [:0]const u8) !sqlite.Db {
 pub fn checkMatchingMigrations(
     rows: MigrationDbRows,
     files: MigrationFiles,
-    stderr: anytype,
+    stderr: *std.Io.Writer,
     ignoreHashes: bool,
 ) !void {
     const migrationsDir = files.dir;
@@ -173,6 +165,8 @@ pub fn checkMatchingMigrations(
                 "Files for previously applied migration \"{d}-{s}\" were not found\n",
                 .{ dbRow.timestamp, dbRow.name },
             );
+            try stderr.flush();
+            return error.MissingMigration;
         }
         const file = files.array.items[index];
         if (!file.eqlNameAndTimestamp(dbRow)) {
@@ -180,6 +174,7 @@ pub fn checkMatchingMigrations(
                 "Files for previously applied migration \"{d}-{s}\" were not found\n",
                 .{ dbRow.timestamp, dbRow.name },
             );
+            try stderr.flush();
             return error.NonMatchingMigrations;
         }
         if (ignoreHashes) continue;
@@ -188,6 +183,7 @@ pub fn checkMatchingMigrations(
                 "Migration \"{s}\" was modified since it was last applied\n",
                 .{file.upFilename},
             );
+            try stderr.flush();
             return error.NonMatchingMigrations;
         }
         if (!try expectHashFile(migrationsDir, file.downFilename, dbRow.down_md5, files.alloc)) {
@@ -195,6 +191,7 @@ pub fn checkMatchingMigrations(
                 "Migration \"{s}\" was modified since its up counterpart was applied\n",
                 .{file.name},
             );
+            try stderr.flush();
             return error.NonMatchingMigrations;
         }
     }

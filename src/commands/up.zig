@@ -17,20 +17,29 @@ pub fn run(
     migrationsDirPath: []const u8,
     dbPath: [:0]const u8,
 ) !void {
-    const stderr = std.io.getStdErr().writer();
-    const stdout = std.io.getStdOut().writer();
+    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    const stderr = &stderr_writer.interface;
+    var stdout_writer = std.fs.File.stderr().writer(&.{});
+    const stdout = &stdout_writer.interface;
 
     try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
+    try stdout.flush();
     var migrationsDir = std.fs.cwd().makeOpenPath(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(
             "Failed to create migrations directory at path \"{s}\": {}\n",
             .{ migrationsDirPath, e },
         );
+        try stderr.flush();
         return e;
     };
     defer migrationsDir.close();
 
-    var db = try utils.openOrCreateDatabase(dbPath);
+    var diags: sqlite.Diagnostics = .{};
+    var db = utils.openOrCreateDatabase(dbPath, &diags) catch |e| {
+        try stderr.print("Failed to open database file at {s}: {f}", .{ dbPath, diags });
+        try stderr.flush();
+        return e;
+    };
 
     var files = try MigrationFiles.fromDir(alloc, migrationsDir, stderr);
     defer files.deinit();
@@ -46,6 +55,7 @@ pub fn run(
 
     if (remainingPairs.len == 0) {
         try stdout.writeAll("No migrations to apply.\n");
+        try stdout.flush();
         // TODO - this will leak the intermediaryArray's items
         return;
     }
@@ -53,10 +63,13 @@ pub fn run(
         "{} migration{s} to apply...\n",
         .{ remainingPairs.len, if (remainingPairs.len > 1) "s" else "" },
     );
+    try stdout.flush();
 
     for (remainingPairs) |*pair| {
         try stdout.print("Applying migration {s}... ", .{pair.upFilename});
+        try stdout.flush();
         try pair.execUp(alloc, &db, stderr);
         try stdout.print("Success\n", .{});
+        try stdout.flush();
     }
 }

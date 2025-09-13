@@ -16,14 +16,18 @@ pub fn run(
 ) !void {
     const migrationName = options.migrationName;
 
-    const stderr = std.io.getStdErr().writer();
-    const stdout = std.io.getStdOut().writer();
+    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    const stderr = &stderr_writer.interface;
+
+    var stdout_writer = std.fs.File.stderr().writer(&.{});
+    const stdout = &stdout_writer.interface;
 
     var migrationsDir = std.fs.cwd().makeOpenPath(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(
             "Failed to create migrations directory at path \"{s}\": {}",
             .{ migrationsDirPath, e },
         );
+        try stderr.flush();
         return e;
     };
     defer migrationsDir.close();
@@ -32,8 +36,10 @@ pub fn run(
         try stderr.print("Migration with provided name {s} already exists.", .{migrationName});
         if (options.allowDuplicateName) {
             try stderr.writeAll(" Option allow-duplicate-name was provided. Ignoring...\n");
+            try stderr.flush();
         } else {
             try stderr.writeAll("\n");
+            try stderr.flush();
             return error.MigrationAlreadyExists;
         }
     }
@@ -58,6 +64,7 @@ pub fn run(
             "Failed to create migration file at \"{s}/{s}\": {}",
             .{ migrationsDirPath, upFullName, e },
         );
+        try stderr.flush();
         return e;
     };
     defer upFile.close();
@@ -67,21 +74,27 @@ pub fn run(
             "Failed to create migration file at \"{s}/{s}\": {}",
             .{ migrationsDirPath, downFullName, e },
         );
+        try stderr.flush();
         return e;
     };
     defer downFile.close();
 
     // === Write header to up and down files ===
 
-    const upWriter = upFile.writer();
-    const downWriter = downFile.writer();
+    var up_writer = upFile.writer(&.{});
+    const up = &up_writer.interface;
+    var down_writer = downFile.writer(&.{});
+    const down = &down_writer.interface;
 
-    try upWriter.print("-- Up migration {s}\n", .{migrationName});
-    try downWriter.print("-- Down migration {s}\n", .{migrationName});
+    try up.print("-- Up migration {s}\n", .{migrationName});
+    try up.flush();
+    try down.print("-- Down migration {s}\n", .{migrationName});
+    try down.flush();
 
     // Add description to the up migration, if it is provided
     if (options.description) |description| {
-        try upWriter.print("--\n--", .{});
+        try up.print("--\n--", .{});
+        try up.flush();
 
         var wordsIter = std.mem.splitAny(u8, description, " \t");
         var currentLineLen: usize = 0;
@@ -93,12 +106,14 @@ pub fn run(
             const isFirstWordInLine = currentLineLen == 0;
             const isLineTooLong = currentLineLen + wordLen > maxLineLen;
             if (!isFirstWordInLine and isLineTooLong) {
-                try upWriter.writeAll("\n--");
+                try up.writeAll("\n--");
+                try up.flush();
                 currentLineLen = 0;
             }
 
             currentLineLen += wordLen;
-            try upWriter.print(" {s}", .{word});
+            try up.print(" {s}", .{word});
+            try up.flush();
         }
     }
 
@@ -106,4 +121,5 @@ pub fn run(
         "Succesfuly created migration at \"{s}/{s}\"\n",
         .{ migrationsDirPath, upFullName },
     );
+    try stdout.flush();
 }

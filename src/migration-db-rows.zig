@@ -16,8 +16,8 @@ pub const DbRow = struct {
         migrationsDir: std.fs.Dir,
         db: *sqlite.Db,
         ignoreHash: bool,
-        stdout: anytype,
-        stderr: anytype,
+        stdout: *std.Io.Writer,
+        stderr: *std.Io.Writer,
     ) !void {
         const downFilename = try std.fmt.allocPrint(
             alloc,
@@ -27,9 +27,9 @@ pub const DbRow = struct {
         defer alloc.free(downFilename);
 
         const downMigration = try migrationsDir.readFileAlloc(
-            alloc,
             downFilename,
-            256 * 1024 * 1024,
+            alloc,
+            @enumFromInt(256 * 1024 * 1024),
         );
         defer alloc.free(downMigration);
 
@@ -48,6 +48,7 @@ pub const DbRow = struct {
             "Applying migration \"{s}\"...",
             .{downFilename},
         );
+        try stdout.flush();
 
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
 
@@ -55,8 +56,10 @@ pub const DbRow = struct {
         db.execDynamic(downMigration, .{ .diags = &diags }, .{}) catch |e| {
             if (e == error.EmptyQuery) {
                 try stderr.print("\nWarning: migration \"{s}\" has an empty query\n", .{downFilename});
+                try stderr.flush();
             } else {
-                try stderr.print("\n{s}\n", .{diags});
+                try stderr.print("\n{f}\n", .{diags});
+                try stderr.flush();
                 return e;
             }
         };
@@ -71,21 +74,24 @@ pub const DbRow = struct {
             ,
                 .{ self.timestamp, self.name, rowsAffected },
             );
+            try stderr.flush();
             return error.FailedToRemoveMigrationRow;
         }
 
         try db.exec("COMMIT TRANSACTION;", .{}, .{});
         try stdout.writeAll("Success\n");
+        try stdout.flush();
     }
 
-    pub fn removeFromDb(self: @This(), db: *sqlite.Db, stderr: anytype) !usize {
+    pub fn removeFromDb(self: @This(), db: *sqlite.Db, stderr: *std.Io.Writer) !usize {
         var diags: sqlite.Diagnostics = .{};
         db.exec(
             "DELETE FROM zmm_migrations WHERE timestamp = ? AND name = ?;",
             .{ .diags = &diags },
             .{ self.timestamp, self.name },
         ) catch |e| {
-            try stderr.print("\n{s}\n", .{diags});
+            try stderr.print("\n{f}\n", .{diags});
+            try stderr.flush();
             return e;
         };
 
@@ -101,10 +107,11 @@ pub const DbRow = struct {
         };
     }
 
-    pub fn insertIntoDb(self: @This(), db: *sqlite.Db, stderr: anytype) !void {
+    pub fn insertIntoDb(self: @This(), db: *sqlite.Db, stderr: *std.Io.Writer) !void {
         var diags: sqlite.Diagnostics = .{};
         utils.insertMigrationIntoTable(db, &diags, self.intoDatabaseMigration()) catch |e| {
-            try stderr.print("{s}\n", .{diags});
+            try stderr.print("{f}\n", .{diags});
+            try stderr.flush();
             return e;
         };
     }
@@ -121,7 +128,7 @@ pub const MigrationDbRows = struct {
     pub fn fromDb(
         alloc: Allocator,
         db: *sqlite.Db,
-        stderr: anytype,
+        stderr: *std.Io.Writer,
         comptime order: []const u8,
     ) !@This() {
         var diags: sqlite.Diagnostics = .{};
@@ -129,7 +136,8 @@ pub const MigrationDbRows = struct {
             "select * from zmm_migrations ORDER BY timestamp " ++ order ++ ";",
             .{ .diags = &diags },
         ) catch |e| {
-            try stderr.print("{any}\n", .{diags});
+            try stderr.print("{f}\n", .{diags});
+            try stderr.flush();
             return e;
         };
         defer stmt.deinit();
@@ -145,7 +153,8 @@ pub const MigrationDbRows = struct {
         };
         var subArena = std.heap.ArenaAllocator.init(arena.allocator());
         const rows = stmt.all(IntermediateRow, subArena.allocator(), .{ .diags = &diags }, .{}) catch |e| {
-            try stderr.print("{any}\n", .{diags});
+            try stderr.print("{f}\n", .{diags});
+            try stderr.flush();
             return e;
         };
         defer subArena.deinit();
@@ -158,10 +167,11 @@ pub const MigrationDbRows = struct {
             else {
                 try stderr.print(
                     "While reading row {d}-{s} from database, up migration md5" ++
-                        " is of incorrect length. It should be {} but is {}. Either" ++
+                        " is of incorrect length. It should be {d} but is {d}. Either" ++
                         " your database is corrupted, or this is a bug in zig-mig",
                     .{ row.timestamp, row.name, digest_length, row.up_md5.len },
                 );
+                try stderr.flush();
                 return error.asdsadds;
             };
 
@@ -170,13 +180,14 @@ pub const MigrationDbRows = struct {
             else {
                 try stderr.print(
                     "While reading row {d}-{s} from database, down migration md5" ++
-                        " is of incorrect length. It should be {} but is {}. Either" ++
+                        " is of incorrect length. It should be {d} but is {d}. Either" ++
                         " your database is corrupted, or this is a bug in zig-mig",
                     .{ row.timestamp, row.name, digest_length, row.down_md5.len },
                 );
+                try stderr.flush();
                 return error.asdsadds;
             };
-            try list.append(.{
+            try list.append(arena.allocator(), .{
                 .name = row.name,
                 .timestamp = row.timestamp,
                 .up_md5 = @bitCast(up_md5),
@@ -187,11 +198,11 @@ pub const MigrationDbRows = struct {
         return .{ .arena = arena, .migrations = list.items };
     }
 
-    pub fn fromDbOldestFirst(alloc: Allocator, db: *sqlite.Db, stderr: anytype) !@This() {
+    pub fn fromDbOldestFirst(alloc: Allocator, db: *sqlite.Db, stderr: *std.Io.Writer) !@This() {
         return fromDb(alloc, db, stderr, "ASC");
     }
 
-    pub fn fromDbNewestFirst(alloc: Allocator, db: *sqlite.Db, stderr: anytype) !@This() {
+    pub fn fromDbNewestFirst(alloc: Allocator, db: *sqlite.Db, stderr: *std.Io.Writer) !@This() {
         return fromDb(alloc, db, stderr, "DESC");
     }
 };

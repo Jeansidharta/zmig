@@ -14,8 +14,10 @@ pub fn run(
     migrationsDirPath: []const u8,
     dbPath: [:0]const u8,
 ) !void {
-    const stderr = std.io.getStdErr().writer();
-    const stdout = std.io.getStdOut().writer();
+    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    const stderr = &stderr_writer.interface;
+    var stdout_writer = std.fs.File.stderr().writer(&.{});
+    const stdout = &stdout_writer.interface;
 
     var diags: sqlite.Diagnostics = .{};
     var db = sqlite.Db.init(.{
@@ -25,9 +27,11 @@ pub fn run(
     }) catch |e| {
         if (e == error.SQLiteCantOpen) {
             try stderr.print("Could not open database file. Does it exist?\n", .{});
+            try stderr.flush();
             return e;
         } else {
-            try stderr.print("{s}\n", .{diags});
+            try stderr.print("{f}\n", .{diags});
+            try stderr.flush();
             return e;
         }
     };
@@ -40,15 +44,18 @@ pub fn run(
     );
     if (tablesCount.? != 1) {
         try stderr.print("Database does not have a migrations table setup yet\n", .{});
+        try stderr.flush();
         return error.NoTableFound;
     }
 
     try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
+    try stdout.flush();
     var migrationsDir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(
             "Failed to open migrations directory at path \"{s}\": {}\n",
             .{ migrationsDirPath, e },
         );
+        try stderr.flush();
         return e;
     };
     defer migrationsDir.close();
@@ -69,6 +76,8 @@ pub fn run(
         )
     else
         try stdout.print("No migrations to apply\n", .{});
+    try stdout.flush();
 
     try stdout.print("Everything is Ok!\n", .{});
+    try stdout.flush();
 }

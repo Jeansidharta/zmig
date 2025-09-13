@@ -11,14 +11,7 @@ const File = struct {
     timestamp: u64,
     hash: HashInt,
 
-    pub fn format(
-        self: @This(),
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
+    pub fn format(self: @This(), writer: std.Io.Writer) !void {
         try writer.print(
             \\    .{{
             \\        .timestamp = {d},
@@ -48,14 +41,7 @@ const File = struct {
 const Migrations = struct {
     arr: std.ArrayList(File),
 
-    pub fn format(
-        self: @This(),
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
+    pub fn format(self: @This(), writer: *std.Io.Writer) !void {
         try writer.print(
             \\pub const Migration = struct {{
             \\    timestamp: u64,
@@ -94,7 +80,8 @@ pub fn main() !void {
     defer arena_state.deinit();
     const alloc = arena_state.allocator();
 
-    const stderr = std.io.getStdErr().writer();
+    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    var stderr = &stderr_writer.interface;
 
     const args = try std.process.argsAlloc(alloc);
     if (args.len != 3) @panic("Wrong number of arguments");
@@ -105,10 +92,12 @@ pub fn main() !void {
     const outputFile = try std.fs.createFileAbsolute(outputFilePath, .{ .truncate = false });
     defer outputFile.close();
 
-    const outputWriter = outputFile.writer();
+    var outputWriter = outputFile.writer(&.{});
+    var output = &outputWriter.interface;
 
     const dir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
-        try stderr.print("Failed to open migrations directory: {}\n", .{e});
+        try stderr.print("Failed to open migrations directory: {t}\n", .{e});
+        try stderr.flush();
         return e;
     };
 
@@ -128,5 +117,6 @@ pub fn main() !void {
         });
     }
     std.sort.insertion(File, @constCast(files.arr.items), {}, pairCompare);
-    try outputWriter.print("{}", .{files});
+    try output.print("{f}", .{files});
+    try output.flush();
 }

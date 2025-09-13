@@ -11,6 +11,8 @@ fn makeMigrationsFile(
     const generate_step = b.addRunArtifact(
         b.addExecutable(.{
             .name = "migration-generator",
+            // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+            .use_llvm = true,
             .root_module = b.createModule(.{
                 .target = target,
                 .optimize = optimize,
@@ -76,6 +78,8 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "zmig",
         .root_module = exe_mod,
+        // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+        .use_llvm = true,
     });
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);

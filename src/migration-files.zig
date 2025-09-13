@@ -32,7 +32,7 @@ const IntermediaryMigrationFilePair = struct {
         alloc: Allocator,
         migrationDir: std.fs.Dir,
         entryName: []const u8,
-        stderr: anytype,
+        stderr: *std.Io.Writer,
     ) !@This() {
         const filename = try alloc.dupe(u8, entryName);
         errdefer alloc.free(filename);
@@ -56,6 +56,7 @@ const IntermediaryMigrationFilePair = struct {
                     .{filename},
                 ),
             }
+            try stderr.flush();
             return e;
         };
         return .{
@@ -93,7 +94,7 @@ pub const MigrationFilePair = struct {
         self: @This(),
         alloc: Allocator,
         db: *sqlite.Db,
-        stderr: anytype,
+        stderr: *std.Io.Writer,
     ) !void {
         const upContents = try self.readUp(alloc);
         defer alloc.free(upContents);
@@ -101,7 +102,8 @@ pub const MigrationFilePair = struct {
         var sqliteDiags: sqlite.Diagnostics = .{};
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
         db.execDynamic(upContents, .{ .diags = &sqliteDiags }, .{}) catch |e| {
-            try stderr.print("\n{s}\n", .{sqliteDiags});
+            try stderr.print("\n{f}\n", .{sqliteDiags});
+            try stderr.flush();
             return e;
         };
 
@@ -111,11 +113,11 @@ pub const MigrationFilePair = struct {
     }
 
     pub fn readUp(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(alloc, self.upFilename, 1024 * 1024 * 256);
+        return self.dir.readFileAlloc(self.upFilename, alloc, @enumFromInt(1024 * 1024 * 256));
     }
 
     pub fn readDown(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(alloc, self.downFilename, 1024 * 1024 * 256);
+        return self.dir.readFileAlloc(self.downFilename, alloc, @enumFromInt(1024 * 1024 * 256));
     }
 
     pub fn eqlNameAndTimestamp(self: @This(), row: DbRow) bool {
@@ -155,19 +157,19 @@ pub const MigrationFiles = struct {
     array: std.ArrayList(MigrationFilePair),
     alloc: Allocator,
 
-    pub fn deinit(self: @This()) void {
+    pub fn deinit(self: *@This()) void {
         for (self.array.items) |item| {
             self.alloc.free(item.upFilename);
             self.alloc.free(item.downFilename);
         }
-        self.array.deinit();
+        self.array.deinit(self.alloc);
     }
 
     /// Lists all migrations in the MigrationDir
-    pub fn fromDir(alloc: Allocator, migrationDir: std.fs.Dir, stderr: anytype) !@This() {
+    pub fn fromDir(alloc: Allocator, migrationDir: std.fs.Dir, stderr: *std.Io.Writer) !@This() {
         var iter = migrationDir.iterate();
-        var intermediaryArray = std.ArrayList(IntermediaryMigrationFilePair).init(alloc);
-        defer intermediaryArray.deinit();
+        var intermediaryArray = std.ArrayList(IntermediaryMigrationFilePair).empty;
+        defer intermediaryArray.deinit(alloc);
 
         while (try iter.next()) |entry| {
             if (entry.kind != .file and entry.kind != .sym_link) continue;
@@ -191,7 +193,7 @@ pub const MigrationFiles = struct {
                     oldMigration.downFilename = newMigration.downFilename;
                 }
             } else {
-                try intermediaryArray.append(newMigration);
+                try intermediaryArray.append(alloc, newMigration);
             }
         }
 
@@ -200,7 +202,7 @@ pub const MigrationFiles = struct {
             .alloc = alloc,
             .dir = migrationDir,
         };
-        errdefer self.array.deinit();
+        errdefer self.array.deinit(alloc);
 
         for (intermediaryArray.items) |pair| {
             const newPair = pair.intoMigrationFilePair() catch |e| {
@@ -214,9 +216,10 @@ pub const MigrationFiles = struct {
                         .{pair.downFilename.?},
                     ),
                 }
+                try stderr.flush();
                 return e;
             };
-            try self.array.append(newPair);
+            try self.array.append(alloc, newPair);
         }
         std.sort.insertion(MigrationFilePair, @constCast(self.array.items), {}, pairCompare);
         return self;

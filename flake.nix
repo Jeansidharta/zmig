@@ -16,6 +16,12 @@
       url = "github:vrischmann/zig-sqlite";
       flake = false;
     };
+
+    zig-flake.url = "github:mitchellh/zig-overlay";
+    zls-flake = {
+      url = "github:zigtools/zls";
+      inputs.zig-overlay.follows = "zig-flake";
+    };
   };
   outputs =
     {
@@ -26,6 +32,8 @@
       zig-cli,
       zig-sqlite,
       sqlite-amalgamation,
+      zig-flake,
+      zls-flake,
     }:
     utils.lib.eachDefaultSystem (
       system:
@@ -35,6 +43,10 @@
 
         project_name = zon.name;
         version = zon.version;
+
+        zig = zig-flake.outputs.packages.${system}.master;
+        zls = zls-flake.outputs.packages.${system}.default;
+
         deps = pkgs.linkFarm (project_name + "-deps") {
           ${zon.dependencies.sqlite.hash} = zig-sqlite;
           ${zon.dependencies.cli.hash} = zig-cli;
@@ -50,7 +62,7 @@
           version = version;
           src = ./.;
           buildInputs = [
-            pkgs.zig
+            zig
           ];
 
           meta = {
@@ -78,8 +90,8 @@
         devShell = pkgs.mkShell {
           shellHook = mkLibsLinkScript;
           buildInputs = [
-            pkgs.zig
-            pkgs.zls
+            zig
+            zls
           ];
         };
       }
