@@ -13,7 +13,7 @@ pub var options = struct {
 pub fn run(
     alloc: Allocator,
     migrationsDirPath: []const u8,
-) !void {
+) !struct { upFullName: []const u8, downFullName: []const u8 } {
     const migrationName = options.migrationName;
 
     var stderr_writer = std.fs.File.stderr().writer(&.{});
@@ -51,13 +51,13 @@ pub fn run(
         "{d}-{s}.up.sql",
         .{ time, migrationName },
     );
-    defer alloc.free(upFullName);
+    errdefer alloc.free(upFullName);
     const downFullName = try std.fmt.allocPrint(
         alloc,
         "{d}-{s}.down.sql",
         .{ time, migrationName },
     );
-    defer alloc.free(downFullName);
+    errdefer alloc.free(downFullName);
 
     const upFile = migrationsDir.createFile(upFullName, .{}) catch |e| {
         try stderr.print(
@@ -122,4 +122,5 @@ pub fn run(
         .{ migrationsDirPath, upFullName },
     );
     try stdout.flush();
+    return .{ .upFullName = upFullName, .downFullName = downFullName };
 }

@@ -22,7 +22,7 @@ pub fn run(
     var stdout_writer = std.fs.File.stderr().writer(&.{});
     const stdout = &stdout_writer.interface;
 
-    try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
+    try stdout.print("Looking for migrations at \"{s}\" directory...\n", .{migrationsDirPath});
     try stdout.flush();
     var migrationsDir = std.fs.cwd().makeOpenPath(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(

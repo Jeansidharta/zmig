@@ -17,7 +17,9 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
 var alloc = gpa.allocator();
 
 fn runNew() !void {
-    try commandNewMigration.run(alloc, config.migrationsDirPath);
+    const result = try commandNewMigration.run(alloc, config.migrationsDirPath);
+    alloc.free(result.downFullName);
+    alloc.free(result.upFullName);
 }
 
 fn runUp() !void {

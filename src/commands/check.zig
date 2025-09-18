@@ -48,7 +48,7 @@ pub fn run(
         return error.NoTableFound;
     }
 
-    try stdout.print("Looking for migrations at \"./{s}\" directory...\n", .{migrationsDirPath});
+    try stdout.print("Looking for migrations at \"{s}\" directory...\n", .{migrationsDirPath});
     try stdout.flush();
     var migrationsDir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(
