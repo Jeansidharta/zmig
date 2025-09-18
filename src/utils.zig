@@ -75,7 +75,7 @@ pub fn expectHashFile(
     hash: HashInt,
     alloc: Allocator,
 ) !bool {
-    const contents = try migrationsDir.readFileAlloc(path, alloc, @enumFromInt(1024 * 1024 * 256));
+    const contents = try migrationsDir.readFileAlloc(alloc, path, 1024 * 1024 * 256);
     defer alloc.free(contents);
     return expectHashBuf(contents, hash);
 }

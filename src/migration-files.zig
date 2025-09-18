@@ -101,10 +101,12 @@ pub const MigrationFilePair = struct {
 
         var sqliteDiags: sqlite.Diagnostics = .{};
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
-        db.execDynamic(upContents, .{ .diags = &sqliteDiags }, .{}) catch |e| {
-            try stderr.print("\n{f}\n", .{sqliteDiags});
-            try stderr.flush();
-            return e;
+        db.execMulti(upContents, .{ .diags = &sqliteDiags }) catch |e| {
+            if (e != error.EmptyQuery) {
+                try stderr.print("\n{f}\n", .{sqliteDiags});
+                try stderr.flush();
+                return e;
+            }
         };
 
         const migration = try self.intoDbRow(alloc);
@@ -113,11 +115,11 @@ pub const MigrationFilePair = struct {
     }
 
     pub fn readUp(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(self.upFilename, alloc, @enumFromInt(1024 * 1024 * 256));
+        return self.dir.readFileAlloc(alloc, self.upFilename, 1024 * 1024 * 256);
     }
 
     pub fn readDown(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(self.downFilename, alloc, @enumFromInt(1024 * 1024 * 256));
+        return self.dir.readFileAlloc(alloc, self.downFilename, 1024 * 1024 * 256);
     }
 
     pub fn eqlNameAndTimestamp(self: @This(), row: DbRow) bool {

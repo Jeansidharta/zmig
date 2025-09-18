@@ -94,10 +94,27 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    const test_exe = b.addExecutable(.{
+        .name = "zmig-test",
+        // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+        .use_llvm = true,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .module = sqlite.module("sqlite"), .name = "sqlite" },
+            },
+        }),
+    });
+
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+    const run_test = b.addRunArtifact(test_exe);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
+    test_step.dependOn(&run_test.step);
 
     const checkStep = b.step("check", "Make sure it compiles");
     checkStep.dependOn(&exe.step);
+    checkStep.dependOn(test_step);
 }

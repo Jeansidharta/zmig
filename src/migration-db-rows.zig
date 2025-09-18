@@ -27,9 +27,9 @@ pub const DbRow = struct {
         defer alloc.free(downFilename);
 
         const downMigration = try migrationsDir.readFileAlloc(
-            downFilename,
             alloc,
-            @enumFromInt(256 * 1024 * 1024),
+            downFilename,
+            256 * 1024 * 1024,
         );
         defer alloc.free(downMigration);
 
@@ -53,7 +53,7 @@ pub const DbRow = struct {
         try db.exec("BEGIN TRANSACTION;", .{}, .{});
 
         var diags: sqlite.Diagnostics = .{};
-        db.execDynamic(downMigration, .{ .diags = &diags }, .{}) catch |e| {
+        db.execMulti(downMigration, .{ .diags = &diags }) catch |e| {
             if (e == error.EmptyQuery) {
                 try stderr.print("\nWarning: migration \"{s}\" has an empty query\n", .{downFilename});
                 try stderr.flush();

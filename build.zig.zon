@@ -4,8 +4,8 @@
     .fingerprint = 0x220e382987b2dc7,
     .dependencies = .{
         .sqlite = .{
-            .url = "git+https://github.com/vrischmann/zig-sqlite#6d90ee900d186a7fbb6066f28ee13beeaf8be345",
-            .hash = "sqlite-3.48.0-F2R_a5yODgDFvwwsytm7ZONcSqYBo3qv1PmXOtw3tqLA",
+            .url = "git+https://github.com/vrischmann/zig-sqlite?ref=zig-0.15.1#3547902fe8f293637ca16a2b8a0bbaa89cf592a5",
+            .hash = "sqlite-3.48.0-F2R_a52ODgDFoOf0S8ZamFe2k7JJwqM0cDzOF6nxr_uO",
         },
         .cli = .{
             .url = "git+https://github.com/sam701/zig-cli?ref=zig-0.15#cb44aade25a3c1eddd8b6f990b50c2189442c1e2",

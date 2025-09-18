@@ -44,7 +44,7 @@
         project_name = zon.name;
         version = zon.version;
 
-        zig = zig-flake.outputs.packages.${system}.master;
+        zig = zig-flake.outputs.packages.${system}."0.15.1";
         zls = zls-flake.outputs.packages.${system}.default;
 
         deps = pkgs.linkFarm (project_name + "-deps") {
