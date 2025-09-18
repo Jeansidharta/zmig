@@ -120,8 +120,6 @@ pub fn insertMigrationIntoTable(
     diags: ?*sqlite.Diagnostics,
     migration: DatabaseMigration,
 ) !void {
-    const upHashBuf = migration.up_md5.data[0..digest_length];
-    const downHashBuf = migration.down_md5.data[0..digest_length];
     return db.exec(
         \\ INSERT INTO zmm_migrations (
         \\   name,
@@ -132,8 +130,8 @@ pub fn insertMigrationIntoTable(
     , .{ .diags = diags }, .{
         migration.name,
         migration.timestamp,
-        sqlite.Blob{ .data = upHashBuf },
-        sqlite.Blob{ .data = downHashBuf },
+        migration.up_md5,
+        migration.down_md5,
     });
 }
 

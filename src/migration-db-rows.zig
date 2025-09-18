@@ -98,18 +98,17 @@ pub const DbRow = struct {
         return db.rowsAffected();
     }
 
-    fn intoDatabaseMigration(self: @This()) utils.DatabaseMigration {
-        return .{
-            .name = self.name,
-            .timestamp = self.timestamp,
-            .up_md5 = .{ .data = &@as([digest_length]u8, @bitCast(self.up_md5)) },
-            .down_md5 = .{ .data = &@as([digest_length]u8, @bitCast(self.down_md5)) },
-        };
-    }
-
     pub fn insertIntoDb(self: @This(), db: *sqlite.Db, stderr: *std.Io.Writer) !void {
         var diags: sqlite.Diagnostics = .{};
-        utils.insertMigrationIntoTable(db, &diags, self.intoDatabaseMigration()) catch |e| {
+        const up_md5 = @as([digest_length]u8, @bitCast(self.up_md5));
+        const down_md5 = @as([digest_length]u8, @bitCast(self.down_md5));
+        const migration: utils.DatabaseMigration = .{
+            .name = self.name,
+            .timestamp = self.timestamp,
+            .up_md5 = .{ .data = &up_md5 },
+            .down_md5 = .{ .data = &down_md5 },
+        };
+        utils.insertMigrationIntoTable(db, &diags, migration) catch |e| {
             try stderr.print("{f}\n", .{diags});
             try stderr.flush();
             return e;
