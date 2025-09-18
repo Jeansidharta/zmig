@@ -11,7 +11,7 @@ const File = struct {
     timestamp: u64,
     hash: HashInt,
 
-    pub fn format(self: @This(), writer: std.Io.Writer) !void {
+    pub fn format(self: @This(), writer: *std.Io.Writer) !void {
         try writer.print(
             \\    .{{
             \\        .timestamp = {d},
@@ -39,7 +39,7 @@ const File = struct {
     }
 };
 const Migrations = struct {
-    arr: std.ArrayList(File),
+    arr: std.ArrayList(File) = .empty,
 
     pub fn format(self: @This(), writer: *std.Io.Writer) !void {
         try writer.print(
@@ -53,15 +53,11 @@ const Migrations = struct {
             \\
         , .{digest_length * 8});
         for (self.arr.items) |file| {
-            try writer.print("{s}\n", .{file});
+            try writer.print("{f}\n", .{file});
         }
         try writer.writeAll(
             \\};
         );
-    }
-
-    pub fn init(alloc: std.mem.Allocator) @This() {
-        return .{ .arr = .init(alloc) };
     }
 };
 
@@ -102,14 +98,14 @@ pub fn main() !void {
     };
 
     var iter = dir.iterate();
-    var files: Migrations = .init(alloc);
+    var files: Migrations = .{};
     while (try iter.next()) |entry| {
         if (!std.mem.endsWith(u8, entry.name, ".up.sql")) continue;
         const filename = try alloc.dupe(u8, entry.name);
         const parsed = try utils.parseFileName(filename);
         const body = try dir.readFileAlloc(alloc, entry.name, 256 * 1024 * 1024);
         const hash: HashInt = @bitCast(utils.hashBuf(body));
-        try files.arr.append(.{
+        try files.arr.append(alloc, .{
             .timestamp = parsed.timestamp,
             .name = parsed.name,
             .hash = hash,
