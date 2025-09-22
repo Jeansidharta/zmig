@@ -5,12 +5,12 @@
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
         .sqlite = .{
-            .url = "git+https://github.com/vrischmann/zig-sqlite#be8b4965b46fc1a7a819bf3cba09f370c0e9c64c",
-            .hash = "sqlite-3.48.0-F2R_a9GLDgAXT-c49TfkFMt6yPOMQAYfp4ig8bRNdZs4",
+            .url = "git+https://github.com/vrischmann/zig-sqlite?ref=zig-0.15.1#3547902fe8f293637ca16a2b8a0bbaa89cf592a5",
+            .hash = "sqlite-3.48.0-F2R_a52ODgDFoOf0S8ZamFe2k7JJwqM0cDzOF6nxr_uO",
         },
         .zmig = .{
-            .url = "git+https://github.com/Jeansidharta/zmig#0c010d7d37e93a4352e6cc23fd5acd6b6ea4cf00",
-            .hash = "zmig-0.0.1-xy17mO29AACmIrFsxfqZz9yu2sI3si1l711u9rdUW56M",
+            .url = "../../",
+            .hash = "zmig-0.0.1-xy17mEDaAABX9VoWsI3To2fog_IWZKgln4MFZotoM1of",
         },
     },
     .paths = .{

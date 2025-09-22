@@ -24,6 +24,8 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "simple",
+        // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+        .use_llvm = true,
         .root_module = exe_mod,
     });
 
@@ -44,6 +46,8 @@ pub fn build(b: *std.Build) void {
             const zmig_cli = b.addRunArtifact(
                 b.addExecutable(.{
                     .root_module = zmig.module("zmig-cli"),
+                    // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+                    .use_llvm = true,
                     .name = "zmig-cli",
                 }),
             );

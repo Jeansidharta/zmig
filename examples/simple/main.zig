@@ -16,5 +16,13 @@ pub fn main() !void {
     });
     defer db.deinit();
 
-    try zmig.applyMigrations(&db, alloc, .{}, null);
+    var diags: zmig.Diagnostics = .{};
+    zmig.applyMigrations(
+        &db,
+        alloc,
+        .{ .diagnostics = &diags, .checkHash = true, .checkName = true },
+    ) catch |e| {
+        std.debug.print("{f}\n", .{diags});
+        return e;
+    };
 }

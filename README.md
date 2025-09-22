@@ -41,6 +41,8 @@ will also run all migrations you wrote when developing it.
        const zmig_cli = b.addRunArtifact(
            b.addExecutable(.{
                .root_module = zmig.module("zmig-cli"),
+               // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+               .use_llvm = true,
                .name = "zmig-cli",
            }),*
        );
@@ -62,7 +64,7 @@ zmig has two usage components: the zig module and the cli tool.
 Make sure you followed the installation steps 1 through 3.
 
 The zmig module only has one exported function:
-`fn applyMigrations(db: *sqlite.Db, alloc: Allocator, options: Options, diagnostics: ?*sqlite.Diagnostics) !void`.
+`fn applyMigrations(db: *sqlite.Db, alloc: Allocator, options: Options) !void`.
 This function will make sure all migrations in the directory specified in the
 step 3 of the installation have been correctly applied to the given SQLite
 database. If any migration still has to be applied, it will apply it for you.
@@ -75,21 +77,30 @@ The third argument, `Options`, is a struct with the following format:
 const Options = struct {
     checkHash: bool = false,
     checkName: bool = false,
+    diagnostics: ?*Diagnostics = null,
 };
 ```
 
 If `checkHash` is set to true, the `applyMigrations` function will error if any
 previously applied migration has a differenty hash from its current
 correspondent migration file. If `checkName` is true, it will also error if
-there is a name mismatch. This is useful if you wan't to make sure no migration
+there is a name mismatch. This is useful if you want to make sure no migration
 has been modified since it's been applied. Should probably be turned off for
 production, though, unless you have a decent way to recover from this.
 
-The fourth argument to the `applyMigrations` function, the `diagnostics` object,
-is useful if you want to know more information about any potential errors;
-Otherwise, you can just set it to null. The diagnostics object has a custom
-`format` function that will display a friendly message to the user indicating
-what went wrong.
+If the `diagnostics` field is provided, it'll be populated with additional
+information in case an error occurs. This is known as the
+[diagnostics pattern](https://mikemikeb.com/blog/zig_error_payloads/). The
+diagnostics object has a custom `format` function that will display a friendly
+message to the user indicating what went wrong. example:
+
+```zig
+var diagnostics: zmig.Diagnostics = .{};
+zmig.applyMigrations(db, alloc, .{ .diagnostics = &diagnostics }) catch |e| {
+    std.debug.print("{f}\n", .{diagnostics});
+    return e;
+}
+```
 
 Do note that the `applyMigrations` function does not directly read from the
 specified migrations directory. It, instead, has those migrations embeded into
