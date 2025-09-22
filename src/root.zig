@@ -99,7 +99,7 @@ pub fn applyMigrations(db: *sqlite.Db, alloc: std.mem.Allocator, options: Option
 
     diags.stage = .FetchingMigrationsFromTable;
     var stmt = db.prepareWithDiags(
-        "select * from zmm_migrations ORDER BY timestamp ASC;",
+        "select * from zmig_migrations ORDER BY timestamp ASC;",
         .{ .diags = &sqliteDiags },
     ) catch |e| {
         diags.kind = .{ .SqliteError = sqliteDiags };

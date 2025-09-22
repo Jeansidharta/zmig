@@ -68,7 +68,7 @@ pub const DbRow = struct {
 
         if (rowsAffected != 1) {
             try stderr.print(
-                \\Error: Failed to remove migration from table zmm_migrations.
+                \\Error: Failed to remove migration from table zmig_migrations.
                 \\Tried to remove 1 row with timestamp {d} and name "{s}", but removed {d} rows instead
                 \\
             ,
@@ -86,7 +86,7 @@ pub const DbRow = struct {
     pub fn removeFromDb(self: @This(), db: *sqlite.Db, stderr: *std.Io.Writer) !usize {
         var diags: sqlite.Diagnostics = .{};
         db.exec(
-            "DELETE FROM zmm_migrations WHERE timestamp = ? AND name = ?;",
+            "DELETE FROM zmig_migrations WHERE timestamp = ? AND name = ?;",
             .{ .diags = &diags },
             .{ self.timestamp, self.name },
         ) catch |e| {
@@ -132,7 +132,7 @@ pub const MigrationDbRows = struct {
     ) !@This() {
         var diags: sqlite.Diagnostics = .{};
         var stmt = db.prepareWithDiags(
-            "select * from zmm_migrations ORDER BY timestamp " ++ order ++ ";",
+            "select * from zmig_migrations ORDER BY timestamp " ++ order ++ ";",
             .{ .diags = &diags },
         ) catch |e| {
             try stderr.print("{f}\n", .{diags});

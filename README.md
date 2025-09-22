@@ -78,7 +78,7 @@ A simple possible workflow would be something like this:
 # The CLI uses this environment variable to determine the path to the
 # local database. If preferable, you can also pass this path in the
 # -d option (ex: `zig build zmig -- -d db.sqlite3 check`)
-$ export ZMM_DB_PATH=db.sqlite3
+$ export ZMIG_DB_PATH=db.sqlite3
 
 # Creates a new migration named "migration_name"
 # You can also specify a different migrations directory with the -m option

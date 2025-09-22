@@ -38,7 +38,7 @@ pub fn run(
 
     const tablesCount = try db.one(
         usize,
-        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='zmm_migrations';",
+        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='zmig_migrations';",
         .{},
         .{},
     );

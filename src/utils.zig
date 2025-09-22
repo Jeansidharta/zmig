@@ -106,7 +106,7 @@ pub fn hasMigrationWithName(
 
 pub fn createMigrationsTable(db: *sqlite.Db, diags: ?*sqlite.Diagnostics) !void {
     return db.exec(
-        \\ CREATE TABLE IF NOT EXISTS zmm_migrations (
+        \\ CREATE TABLE IF NOT EXISTS zmig_migrations (
         \\   name TEXT NOT NULL,
         \\   timestamp INTEGER PRIMARY KEY ASC NOT NULL,
         \\   up_md5 BLOB NOT NULL,
@@ -121,7 +121,7 @@ pub fn insertMigrationIntoTable(
     migration: DatabaseMigration,
 ) !void {
     return db.exec(
-        \\ INSERT INTO zmm_migrations (
+        \\ INSERT INTO zmig_migrations (
         \\   name,
         \\   timestamp,
         \\   up_md5,

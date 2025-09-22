@@ -49,7 +49,7 @@ pub fn main() !void {
         .version = "0.0.1",
         .author = "jeansidharta@gmail.com",
         .command = .{
-            .name = "zmm",
+            .name = "zmig",
             .description = .{
                 .one_line = "Manage sqlite migrations",
                 .detailed = "Zig Migration Manager allows you to easily create, apply and remove migrations on your SQLite database.",
@@ -58,7 +58,7 @@ pub fn main() !void {
                 cli.Option{
                     .long_name = "database",
                     .short_alias = 'd',
-                    .envvar = "ZMM_DB_PATH",
+                    .envvar = "ZMIG_DB_PATH",
                     .help = "Path to the database",
                     .required = true,
                     .value_name = "DB-PATH",
@@ -67,7 +67,7 @@ pub fn main() !void {
                 cli.Option{
                     .long_name = "migrations-path",
                     .short_alias = 'm',
-                    .envvar = "ZMM_MIGRATIONS_PATH",
+                    .envvar = "ZMIG_MIGRATIONS_PATH",
                     .help = "Path to the directory that contains the migrations",
                     .value_name = "MIGRATIONS-DIR",
                     .value_ref = runner.mkRef(&config.migrationsDirPath),
@@ -88,7 +88,7 @@ pub fn main() !void {
                             cli.Option{
                                 .long_name = "allow-duplicate-name",
                                 .help = "Allows migrations to have the same name",
-                                .envvar = "ZMM_ALLOW_DUPLICATE_NAME",
+                                .envvar = "ZMIG_ALLOW_DUPLICATE_NAME",
                                 .value_ref = runner.mkRef(&commandNewMigration.options.allowDuplicateName),
                             },
                         }),
