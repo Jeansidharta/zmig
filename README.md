@@ -1,11 +1,13 @@
 # zmig
 
-A sqlite migration tool for Zig. Inspired by
-[sqlx](https://github.com/launchbadge/sqlx).
+An sqlite migration tool for Zig projects. Inspired by the excellent
+[sqlx-cli](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli).
 
 zmig will create, verify and manage all your migrations while developing your
-application. And when you deploy it, zmig will make sure your production app
-will also run all migrations you wrote when developing it.
+application. During deployment, zmig will make sure your production app will
+also run all newly introduced migrations on the production database.
+
+For zig v0.15.1
 
 ## Installing
 
@@ -15,14 +17,9 @@ will also run all migrations you wrote when developing it.
 2. Add the module to your imports table in `build.zig`:
 
    ```zig
-   // ... Previous things in your build.zig file...
-   const zmig = b.dependency("zmig", .{
-      .target = target,
-      .optimize = optimize,
-   });
-   // Note: exe is your main application executable module
+   const zmig = b.dependency("zmig", .{ .target = target, .optimize = optimize });
+   // exe_mod is meant to be your main application executable module
    exe_mod.root_module.addImport("zmig", zmig.module("zmig"));
-   // ... Remaining things in you build.zig file...
    ```
 
 3. Setup the migrations directory to be used by zmig:
@@ -44,7 +41,7 @@ will also run all migrations you wrote when developing it.
                // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
                .use_llvm = true,
                .name = "zmig-cli",
-           }),*
+           }),
        );
        const run_zmig_cli = b.step("zmig", "Invokes the zmig-cli tool");
        run_zmig_cli.dependOn(&zmig_cli.step);
@@ -69,49 +66,56 @@ might be helpful during development.
 If you've followed the installation steps 1 through 4 (don't forget step 4!) you
 should be able to invoke the zmig-cli tool by running
 `zig build zmig -- --help`. Any argument after the `--` will be directed towards
-the zmig-cli tool. The help messages should be enought to help you learn the
+the zmig-cli tool. The help messages should be enough to help you learn the
 tool.
 
 A simple possible workflow would be something like this:
 
-```console
-# The CLI uses this environment variable to determine the path to the
-# local database. If preferable, you can also pass this path in the
-# -d option (ex: `zig build zmig -- -d db.sqlite3 check`)
-$ export ZMIG_DB_PATH=db.sqlite3
-
-# Creates a new migration named "migration_name"
-# You can also specify a different migrations directory with the -m option
-$ zig build zmig -- new migration_name
-
-Succesfuly created migration at "migrations/1758503588032-migration_name.up.sql"
-
-# Edit the migration with the changes we want
-$ vim migrations/1758503588032-migration_name.up.sql
-# Don't forget to write a proper down migration!
-$ vim migrations/1758503588032-migration_name.down.sql
-
-# Apply the new migration to our local database
-$ zig build zmig -- up
-
-Looking for migrations at "migrations" directory...
-1 migration to apply...
-Applying migration 1758503588032-migration_name.up.sql... Success
-
-# Check if all migrations are applied, and if everything looks good.
-$ zig build zmig -- check
-
-Looking for migrations at "migrations" directory...
-No migrations to apply
-Everything is Ok!
-
-# Down the last applied migration. You can provice a count with the -c option.
-$ zig build zmig -- down
-
-Looking for migrations at "migrations" directory...
-Applying migration "1758503588032-migration_name.down.sql"... Success
-
-```
+1. **Specify the database path**:
+   ```console
+   $ export ZMIG_DB_PATH=db.sqlite3
+   ```
+   The CLI uses this environment variable to determine the path to the local
+   database. If preferable, you can also pass this path in the -d option (ex:
+   `zig build zmig -- -d db.sqlite3 check`)
+2. **Create a new migration**:
+   ```console
+   $ zig build zmig -- new migration_name
+    Succesfuly created migration at "migrations/1758503588032-migration_name.up.sql"
+   ```
+   Creates a new migration named "migration_name" You can also specify a
+   different migrations directory with the `-m` option (ex:
+   `zig build zmig -- -m alternate_migrations new migration_name`) or with the
+   `ZMIG_MIGRATIONS_PATH` environment variable
+3. **Edit the migration with the changes we want**:
+   ```console
+   $ vim migrations/1758503588032-migration_name.up.sql
+   $ vim migrations/1758503588032-migration_name.down.sql
+   ```
+   You can obviously use whatever editor you'd like. This is just a text file.
+   Don't forget to write a proper down migration!
+4. **Apply the new migration to our local database**:
+   ```console
+   $ zig build zmig -- up
+    Looking for migrations at "migrations" directory... 1 migration to apply...
+    Applying migration 1758503588032-migration_name.up.sql... Success
+   ```
+   This will apply all migrations that haven't been yet applied. You can
+   optionally pass the `-c <NUM>` to limit how many migrations you'd like to
+   apply.
+5. **Check if all migrations are applied, and if everything looks good.**
+   ```console
+   $ zig build zmig -- check
+    Looking for migrations at "migrations" directory... No migrations to apply
+    Everything is Ok!
+   ```
+6. **Down the last applied migration.**
+   ```console
+   $ zig build zmig -- down
+   Looking for migrations at "migrations" directory...
+   Applying migration "1758503588032-migration_name.down.sql"... Success
+   ```
+   You can provide a count with the -c option
 
 ### The zig module
 
@@ -139,7 +143,7 @@ const Options = struct {
 ```
 
 If `checkHash` is set to true, the `applyMigrations` function will error if any
-previously applied migration has a differenty hash from its current
+previously applied migration has a different MD5 hash from its current
 correspondent migration file. If `checkName` is true, it will also error if
 there is a name mismatch. This is useful if you want to make sure no migration
 has been modified since it's been applied. Should probably be turned off for
