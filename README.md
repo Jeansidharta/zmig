@@ -81,7 +81,7 @@ A simple possible workflow would be something like this:
 2. **Create a new migration**:
    ```console
    $ zig build zmig -- new migration_name
-    Succesfuly created migration at "migrations/1758503588032-migration_name.up.sql"
+   Succesfuly created migration at "migrations/1758503588032-migration_name.up.sql"
    ```
    Creates a new migration named "migration_name" You can also specify a
    different migrations directory with the `-m` option (ex:
@@ -97,8 +97,8 @@ A simple possible workflow would be something like this:
 4. **Apply the new migration to our local database**:
    ```console
    $ zig build zmig -- up
-    Looking for migrations at "migrations" directory... 1 migration to apply...
-    Applying migration 1758503588032-migration_name.up.sql... Success
+   Looking for migrations at "migrations" directory... 1 migration to apply...
+   Applying migration 1758503588032-migration_name.up.sql... Success
    ```
    This will apply all migrations that haven't been yet applied. You can
    optionally pass the `-c <NUM>` to limit how many migrations you'd like to
@@ -106,8 +106,8 @@ A simple possible workflow would be something like this:
 5. **Check if all migrations are applied, and if everything looks good.**
    ```console
    $ zig build zmig -- check
-    Looking for migrations at "migrations" directory... No migrations to apply
-    Everything is Ok!
+   Looking for migrations at "migrations" directory... No migrations to apply
+   Everything is Ok!
    ```
 6. **Down the last applied migration.**
    ```console
@@ -170,3 +170,13 @@ folder, the previously built application binary will still have the old
 migrations. The only way to update the migrations from the binary is by
 rebuilding the application. This is useful so that the application will
 automatically apply any needed migration when it is deployed to production.
+
+## Migration name format
+
+The current default used by the tool is `<TIMESTAMP>-<NAME>.<up|down>.sql`.
+Example: `1758503588032-migration_name.up.sql`. If desired, the timestamp
+portion does not need to be the actual timestamp of the migration's creation,
+but it is required, and will be used to sort the migrations. It must be a valid
+decimal number that fits in a `u64`. The migrations will be sorted by the
+numerical value of this number, and not the string value. Therefore,
+`2-migration.up.sql` will be applied before `12-migration.up.sql`
