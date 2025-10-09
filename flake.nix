@@ -3,6 +3,8 @@
     utils.url = "github:numtide/flake-utils";
     zon-parser.url = "github:Jeansidharta/nix-zon-parser";
 
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     sqlite-amalgamation = {
       url = "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip";
       flake = false;
@@ -16,12 +18,6 @@
       url = "github:vrischmann/zig-sqlite";
       flake = false;
     };
-
-    zig-flake.url = "github:mitchellh/zig-overlay";
-    zls-flake = {
-      url = "github:zigtools/zls";
-      inputs.zig-overlay.follows = "zig-flake";
-    };
   };
   outputs =
     {
@@ -32,8 +28,6 @@
       zig-cli,
       zig-sqlite,
       sqlite-amalgamation,
-      zig-flake,
-      zls-flake,
     }:
     utils.lib.eachDefaultSystem (
       system:
@@ -44,13 +38,10 @@
         project_name = zon.name;
         version = zon.version;
 
-        zig = zig-flake.outputs.packages.${system}."0.15.1";
-        zls = zls-flake.outputs.packages.${system}.default;
-
         deps = pkgs.linkFarm (project_name + "-deps") {
           ${zon.dependencies.sqlite.hash} = zig-sqlite;
           ${zon.dependencies.cli.hash} = zig-cli;
-          "1220972595d70da33d69d519392742482cb9762935cecb99924e31f3898d2a330861" = sqlite-amalgamation;
+          "N-V-__8AAH-mpwB7g3MnqYU-ooUBF1t99RP27dZ9addtMVXD" = sqlite-amalgamation;
         };
 
         mkLibsLinkScript = ''
@@ -62,7 +53,7 @@
           version = version;
           src = ./.;
           buildInputs = [
-            zig
+            pkgs.zig
           ];
 
           meta = {
@@ -90,8 +81,8 @@
         devShell = pkgs.mkShell {
           shellHook = mkLibsLinkScript;
           buildInputs = [
-            zig
-            zls
+            pkgs.zig
+            pkgs.zls
           ];
         };
       }
