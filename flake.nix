@@ -1,93 +1,88 @@
 {
+  description = "Zig project flake";
+
   inputs = {
-    utils.url = "github:numtide/flake-utils";
-    zon-parser.url = "github:Jeansidharta/nix-zon-parser";
-
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    sqlite-amalgamation = {
-      url = "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip";
-      flake = false;
-    };
-
-    zig-cli = {
-      url = "github:sam701/zig-cli";
-      flake = false;
-    };
-    zig-sqlite = {
-      url = "github:vrischmann/zig-sqlite";
-      flake = false;
-    };
+    zig2nix.url = "github:Cloudef/zig2nix";
   };
+
   outputs =
-    {
-      self,
-      nixpkgs,
-      utils,
-      zon-parser,
-      zig-cli,
-      zig-sqlite,
-      sqlite-amalgamation,
-    }:
-    utils.lib.eachDefaultSystem (
+    { zig2nix, ... }:
+    let
+      flake-utils = zig2nix.inputs.flake-utils;
+    in
+    (flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
-        zon = zon-parser.parser (builtins.readFile ./build.zig.zon);
-
-        project_name = zon.name;
-        version = zon.version;
-
-        deps = pkgs.linkFarm (project_name + "-deps") {
-          ${zon.dependencies.sqlite.hash} = zig-sqlite;
-          ${zon.dependencies.cli.hash} = zig-cli;
-          "N-V-__8AAH-mpwB7g3MnqYU-ooUBF1t99RP27dZ9addtMVXD" = sqlite-amalgamation;
-        };
-
-        mkLibsLinkScript = ''
-          rm --force libs
-          ln -s ${deps} libs
-        '';
-        package = pkgs.stdenv.mkDerivation {
-          pname = project_name;
-          version = version;
-          src = ./.;
-          buildInputs = [
-            pkgs.zig
-          ];
-
-          meta = {
-            mainProgram = "zmig";
-          };
-
-          buildPhase = ''
-            # cp --no-preserve=mode $src/* . -r
-            # ${mkLibsLinkScript}
-
-            zig build \
-              --system ${deps} \
-              --prefix $out \
-              --release=safe \
-              -Doptimize=ReleaseSafe \
-              -Ddynamic-linker=$(cat $NIX_BINTOOLS/nix-support/dynamic-linker) \
-              --cache-dir cache \
-              --global-cache-dir global \
-              --summary all
-          '';
-        };
+        # Zig flake helper
+        # Check the flake.nix in zig2nix project for more options:
+        # <https://github.com/Cloudef/zig2nix/blob/master/flake.nix>
+        env = zig2nix.outputs.zig-env.${system} { };
       in
-      {
-        packages.default = package;
-        devShell = pkgs.mkShell {
-          shellHook = mkLibsLinkScript;
-          buildInputs = [
-            pkgs.zig
-            pkgs.zls
-          ];
+      with builtins;
+      with env.pkgs.lib;
+      rec {
+        # Produces clean binaries meant to be ship'd outside of nix
+        # nix build .#foreign
+        packages.foreign = env.package {
+          src = cleanSource ./.;
+
+          # Packages required for compiling
+          nativeBuildInputs = with env.pkgs; [ ];
+
+          # Packages required for linking
+          buildInputs = with env.pkgs; [ ];
+
+          # Smaller binaries and avoids shipping glibc.
+          zigPreferMusl = true;
+        };
+
+        # nix build .
+        packages.default = packages.foreign.override (attrs: {
+          # Prefer nix friendly settings.
+          zigPreferMusl = false;
+
+          # Executables required for runtime
+          # These packages will be added to the PATH
+          zigWrapperBins = with env.pkgs; [ ];
+
+          # Libraries required for runtime
+          # These packages will be added to the LD_LIBRARY_PATH
+          zigWrapperLibs = attrs.buildInputs or [ ];
+        });
+
+        # For bundling with nix bundle for running outside of nix
+        # example: https://github.com/ralismark/nix-appimage
+        apps.bundle = {
+          type = "app";
+          program = "${packages.foreign}/bin/default";
+        };
+
+        # nix run .
+        apps.default = env.app [ ] "zig build zmig -- \"$@\"";
+
+        # nix run .#build
+        apps.build = env.app [ ] "zig build \"$@\"";
+
+        # nix run .#test
+        apps.test = env.app [ ] "zig build test -- \"$@\"";
+
+        # nix run .#docs
+        apps.docs = env.app [ ] "zig build docs -- \"$@\"";
+
+        # nix run .#zig2nix
+        apps.zig2nix = env.app [ ] "zig2nix \"$@\"";
+
+        # nix develop
+        devShells.default = env.mkShell {
+          # Packages required for compiling, linking and running
+          # Libraries added here will be automatically added to the LD_LIBRARY_PATH and PKG_CONFIG_PATH
+          nativeBuildInputs =
+            [ ]
+            ++ packages.default.nativeBuildInputs
+            ++ packages.default.buildInputs
+            ++ packages.default.zigWrapperBins
+            ++ packages.default.zigWrapperLibs;
         };
       }
-    )
-    // {
-      lib = ./.;
-    };
+    ));
 }

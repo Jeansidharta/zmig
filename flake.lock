@@ -1,60 +1,6 @@
 {
   "nodes": {
-    "nixpkgs": {
-      "locked": {
-        "lastModified": 1759831965,
-        "narHash": "sha256-vgPm2xjOmKdZ0xKA6yLXPJpjOtQPHfaZDRtH+47XEBo=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "c9b6fb798541223bbb396d287d16f43520250518",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "root": {
-      "inputs": {
-        "nixpkgs": "nixpkgs",
-        "sqlite-amalgamation": "sqlite-amalgamation",
-        "utils": "utils",
-        "zig-cli": "zig-cli",
-        "zig-sqlite": "zig-sqlite",
-        "zon-parser": "zon-parser"
-      }
-    },
-    "sqlite-amalgamation": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1736853748,
-        "narHash": "sha256-RGb3UiOxP4TQ5c2FtGfcBiIK6nvCUGcGCw3bfoVyRpE=",
-        "type": "tarball",
-        "url": "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://sqlite.org/2025/sqlite-amalgamation-3480000.zip"
-      }
-    },
-    "systems": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
-      }
-    },
-    "utils": {
+    "flake-utils": {
       "inputs": {
         "systems": "systems"
       },
@@ -72,50 +18,57 @@
         "type": "github"
       }
     },
-    "zig-cli": {
-      "flake": false,
+    "nixpkgs": {
       "locked": {
-        "lastModified": 1756628093,
-        "narHash": "sha256-gjo2O7jtFcnqbGehwczDOeaRDg7JdUBfu2BcHa+nsH4=",
-        "owner": "sam701",
-        "repo": "zig-cli",
-        "rev": "f9a516ddc9771ddd2c8c46a280a9ab6cab8261f2",
+        "lastModified": 1760231785,
+        "narHash": "sha256-SYEdDPzC/20ETECb3wl6ZYV74ov0fPUGRj6m7CunsyE=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "41ccf7a7ae177f24acb5e10dae58d56d6d5f7ce4",
         "type": "github"
       },
       "original": {
-        "owner": "sam701",
-        "repo": "zig-cli",
+        "owner": "nixos",
+        "repo": "nixpkgs",
         "type": "github"
       }
     },
-    "zig-sqlite": {
-      "flake": false,
+    "root": {
+      "inputs": {
+        "zig2nix": "zig2nix"
+      }
+    },
+    "systems": {
       "locked": {
-        "lastModified": 1756558878,
-        "narHash": "sha256-6RxaQO+EAZzuj63m35WV+ofza2VlCHbeDWPa/mjtRDE=",
-        "owner": "vrischmann",
-        "repo": "zig-sqlite",
-        "rev": "6d90ee900d186a7fbb6066f28ee13beeaf8be345",
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
         "type": "github"
       },
       "original": {
-        "owner": "vrischmann",
-        "repo": "zig-sqlite",
+        "owner": "nix-systems",
+        "repo": "default",
         "type": "github"
       }
     },
-    "zon-parser": {
+    "zig2nix": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs"
+      },
       "locked": {
-        "lastModified": 1754494513,
-        "narHash": "sha256-bwlY2e7mxNFYi5DXElv2PMo/ijXOUyq2TLggP0FcKnE=",
-        "owner": "Jeansidharta",
-        "repo": "nix-zon-parser",
-        "rev": "24fc490f0be66ca658b9679b99d676c6dfc6905b",
+        "lastModified": 1760233375,
+        "narHash": "sha256-okUfzeh0T4LmCHPWU3rvU1uKfu0IPRUTr/97xRjA0oQ=",
+        "owner": "Cloudef",
+        "repo": "zig2nix",
+        "rev": "0d6db59a32e79f40e45187ccfaf157b2e507ce36",
         "type": "github"
       },
       "original": {
-        "owner": "Jeansidharta",
-        "repo": "nix-zon-parser",
+        "owner": "Cloudef",
+        "repo": "zig2nix",
         "type": "github"
       }
     }
