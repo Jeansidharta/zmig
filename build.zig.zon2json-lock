@@ -1,0 +1,19 @@
+{
+  "sqlite-3.48.0-F2R_a52ODgDFoOf0S8ZamFe2k7JJwqM0cDzOF6nxr_uO": {
+    "name": "sqlite",
+    "url": "git+https://github.com/vrischmann/zig-sqlite?ref=zig-0.15.1#3547902fe8f293637ca16a2b8a0bbaa89cf592a5",
+    "hash": "sha256-39p6hmlUQkd5VBYNzGLQB4xiJswvKWUSvpgvv9lA39Q=",
+    "rev": "3547902fe8f293637ca16a2b8a0bbaa89cf592a5"
+  },
+  "N-V-__8AAH-mpwB7g3MnqYU-ooUBF1t99RP27dZ9addtMVXD": {
+    "name": "sqlite",
+    "url": "https://www.sqlite.org/2025/sqlite-amalgamation-3490200.zip",
+    "hash": "sha256-kh/HJVF6aU333ziio9/t5mhAJLV4jZ3kZBh8YSr7WRg="
+  },
+  "cli-0.10.0-2eKe_5kEAQBeHqKxUHNTGnETzu81rqKWwT1WPt1jXBt0": {
+    "name": "cli",
+    "url": "git+https://github.com/sam701/zig-cli?ref=zig-0.15#cb44aade25a3c1eddd8b6f990b50c2189442c1e2",
+    "hash": "sha256-/rmfwWseEeqK7nDdSHKwOAPmdsBpFD9/1wg1uHLJ+eU=",
+    "rev": "cb44aade25a3c1eddd8b6f990b50c2189442c1e2"
+  }
+}

@@ -3,10 +3,11 @@
 
   inputs = {
     zig2nix.url = "github:Cloudef/zig2nix";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
   outputs =
-    { zig2nix, ... }:
+    { zig2nix, nixpkgs, ... }:
     let
       flake-utils = zig2nix.inputs.flake-utils;
     in
@@ -17,6 +18,7 @@
         # Check the flake.nix in zig2nix project for more options:
         # <https://github.com/Cloudef/zig2nix/blob/master/flake.nix>
         env = zig2nix.outputs.zig-env.${system} { };
+        pkgs = nixpkgs.legacyPackages.${system};
       in
       with builtins;
       with env.pkgs.lib;
@@ -76,12 +78,13 @@
         devShells.default = env.mkShell {
           # Packages required for compiling, linking and running
           # Libraries added here will be automatically added to the LD_LIBRARY_PATH and PKG_CONFIG_PATH
-          nativeBuildInputs =
-            [ ]
-            ++ packages.default.nativeBuildInputs
-            ++ packages.default.buildInputs
-            ++ packages.default.zigWrapperBins
-            ++ packages.default.zigWrapperLibs;
+          nativeBuildInputs = [
+            pkgs.zls
+          ]
+          ++ packages.default.nativeBuildInputs
+          ++ packages.default.buildInputs
+          ++ packages.default.zigWrapperBins
+          ++ packages.default.zigWrapperLibs;
         };
       }
     ));
