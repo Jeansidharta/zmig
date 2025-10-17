@@ -1,9 +1,9 @@
 {
-  "sqlite-3.48.0-F2R_a52ODgDFoOf0S8ZamFe2k7JJwqM0cDzOF6nxr_uO": {
+  "sqlite-3.48.0-F2R_a5yODgDFvwwsytm7ZONcSqYBo3qv1PmXOtw3tqLA": {
     "name": "sqlite",
-    "url": "git+https://github.com/vrischmann/zig-sqlite?ref=zig-0.15.1#3547902fe8f293637ca16a2b8a0bbaa89cf592a5",
-    "hash": "sha256-39p6hmlUQkd5VBYNzGLQB4xiJswvKWUSvpgvv9lA39Q=",
-    "rev": "3547902fe8f293637ca16a2b8a0bbaa89cf592a5"
+    "url": "git+https://github.com/vrischmann/zig-sqlite#6d90ee900d186a7fbb6066f28ee13beeaf8be345",
+    "hash": "sha256-6RxaQO+EAZzuj63m35WV+ofza2VlCHbeDWPa/mjtRDE=",
+    "rev": "6d90ee900d186a7fbb6066f28ee13beeaf8be345"
   },
   "N-V-__8AAH-mpwB7g3MnqYU-ooUBF1t99RP27dZ9addtMVXD": {
     "name": "sqlite",

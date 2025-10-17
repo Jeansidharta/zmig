@@ -7,7 +7,7 @@ zmig will create, verify and manage all your migrations while developing your
 application. During deployment, zmig will make sure your production app will
 also run all newly introduced migrations on the production database.
 
-For zig v0.15.1
+For zig v0.15.2
 
 ## Installing
 
