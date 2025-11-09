@@ -1,5 +1,5 @@
 const std = @import("std");
-const utils = @import("./src/utils.zig");
+const utils = @import("src/utils.zig");
 const sqlite = @import("sqlite");
 
 const TMP_DIR = "/tmp/zmig-test";
@@ -7,22 +7,22 @@ const MIGRATIONS_DIR = TMP_DIR ++ "/migrations";
 const DB_PATH = TMP_DIR ++ "/db.sqlite3";
 
 fn up(alloc: std.mem.Allocator) !void {
-    const up_mod = @import("./src/commands/up.zig");
+    const up_mod = @import("src/commands/up.zig");
     try up_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
 }
 
 fn down(alloc: std.mem.Allocator) !void {
-    const down_mod = @import("./src/commands/down.zig");
+    const down_mod = @import("src/commands/down.zig");
     try down_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
 }
 
 fn check(alloc: std.mem.Allocator) !void {
-    const check_mod = @import("./src/commands/check.zig");
+    const check_mod = @import("src/commands/check.zig");
     try check_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
 }
 
 fn new_migration(alloc: std.mem.Allocator, migration_name: []const u8, up_migration: []const u8, down_migration: []const u8) !void {
-    const new_migration_mod = @import("./src/commands/new-migration.zig");
+    const new_migration_mod = @import("src/commands/new-migration.zig");
     new_migration_mod.options.migrationName = migration_name;
     const migration = try new_migration_mod.run(alloc, MIGRATIONS_DIR);
     defer alloc.free(migration.upFullName);

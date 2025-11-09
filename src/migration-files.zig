@@ -1,10 +1,10 @@
 const std = @import("std");
-const utils = @import("./utils.zig");
+const utils = @import("utils.zig");
 const Allocator = std.mem.Allocator;
 const sqlite = @import("sqlite");
 const digest_length = std.crypto.hash.Md5.digest_length;
 
-const DbRow = @import("./migration-db-rows.zig").DbRow;
+const DbRow = @import("migration-db-rows.zig").DbRow;
 
 const IntermediaryMigrationFilePair = struct {
     timestamp: u64,

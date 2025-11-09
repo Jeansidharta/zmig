@@ -1,11 +1,21 @@
 const std = @import("std");
 
+const host_machine: std.Build.ResolvedTarget = .{
+    .query = .{},
+    .result = @import("builtin").target,
+};
+
 /// This will invoke the `build/make-migrations-file.zig` script over all
 /// of the provided migrations, and return a LazyPath to a zig source
 /// file containing the result.
+///
+// NOTE: This program runs on the host as part of the build process. ie: not on the host!!
+//       Must set `.target` to native target, ignoring configuration via `b.option` flags
+//       Otherwise, cross-compilation doesn't work because we try and run an incompatible exe
+//
+//       Could perhaps do similar to hardcode `.optimize=Debug`, but respecting flag for now
 fn makeMigrationsFile(
     b: *std.Build,
-    target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) std.Build.LazyPath {
     const generate_step = b.addRunArtifact(
@@ -14,16 +24,15 @@ fn makeMigrationsFile(
             // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
             .use_llvm = true,
             .root_module = b.createModule(.{
-                .target = target,
+                .target = host_machine,
                 .optimize = optimize,
-                .root_source_file = b.path("./build/make-migrations-file.zig"),
+                .root_source_file = b.path("build/make-migrations-file.zig"),
                 .imports = &.{
                     .{
                         // Allows the migrations build module to access our utils functions
                         .name = "utils",
                         .module = b.createModule(.{
                             .root_source_file = b.path("src/utils.zig"),
-                            .target = target,
                             .optimize = optimize,
                         }),
                     },
@@ -59,7 +68,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .module = sqlite.module("sqlite"), .name = "sqlite" },
             .{ .module = b.createModule(.{
-                .root_source_file = makeMigrationsFile(b, target, optimize),
+                .root_source_file = makeMigrationsFile(b, optimize),
                 .target = target,
                 .optimize = optimize,
             }), .name = "built-migrations" },

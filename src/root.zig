@@ -1,7 +1,7 @@
 const builtin_migrations = @import("built-migrations");
 const std = @import("std");
 const sqlite = @import("sqlite");
-const utils = @import("./utils.zig");
+const utils = @import("utils.zig");
 
 pub const Diagnostics = struct {
     kind: union(enum) {

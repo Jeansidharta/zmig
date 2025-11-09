@@ -1,10 +1,10 @@
 const std = @import("std");
 const cli = @import("cli");
 
-const commandNewMigration = @import("./commands/new-migration.zig");
-const commandUp = @import("./commands/up.zig");
-const commandDown = @import("./commands/down.zig");
-const commandCheck = @import("./commands/check.zig");
+const commandNewMigration = @import("commands/new-migration.zig");
+const commandUp = @import("commands/up.zig");
+const commandDown = @import("commands/down.zig");
+const commandCheck = @import("commands/check.zig");
 
 fn exec() !void {}
 
