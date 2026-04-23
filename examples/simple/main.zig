@@ -2,9 +2,8 @@ const std = @import("std");
 const sqlite = @import("sqlite");
 const zmig = @import("zmig");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    const alloc = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const alloc = init.gpa;
 
     var db = try sqlite.Db.init(.{
         .mode = sqlite.Db.Mode{ .File = "db.sqlite3" },

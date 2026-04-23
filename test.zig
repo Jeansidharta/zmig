@@ -6,25 +6,25 @@ const TMP_DIR = "/tmp/zmig-test";
 const MIGRATIONS_DIR = TMP_DIR ++ "/migrations";
 const DB_PATH = TMP_DIR ++ "/db.sqlite3";
 
-fn up(alloc: std.mem.Allocator) !void {
+fn up(alloc: std.mem.Allocator, io: std.Io) !void {
     const up_mod = @import("./src/commands/up.zig");
-    try up_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
+    try up_mod.run(alloc, io, MIGRATIONS_DIR, DB_PATH);
 }
 
-fn down(alloc: std.mem.Allocator) !void {
+fn down(alloc: std.mem.Allocator, io: std.Io) !void {
     const down_mod = @import("./src/commands/down.zig");
-    try down_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
+    try down_mod.run(alloc, io, MIGRATIONS_DIR, DB_PATH);
 }
 
-fn check(alloc: std.mem.Allocator) !void {
+fn check(alloc: std.mem.Allocator, io: std.Io) !void {
     const check_mod = @import("./src/commands/check.zig");
-    try check_mod.run(alloc, MIGRATIONS_DIR, DB_PATH);
+    try check_mod.run(alloc, io, MIGRATIONS_DIR, DB_PATH);
 }
 
-fn new_migration(alloc: std.mem.Allocator, migration_name: []const u8, up_migration: []const u8, down_migration: []const u8) !void {
+fn new_migration(alloc: std.mem.Allocator, io: std.Io, migration_name: []const u8, up_migration: []const u8, down_migration: []const u8) !void {
     const new_migration_mod = @import("./src/commands/new-migration.zig");
     new_migration_mod.options.migrationName = migration_name;
-    const migration = try new_migration_mod.run(alloc, MIGRATIONS_DIR);
+    const migration = try new_migration_mod.run(alloc, io, MIGRATIONS_DIR);
     defer alloc.free(migration.upFullName);
     defer alloc.free(migration.downFullName);
 
@@ -34,51 +34,45 @@ fn new_migration(alloc: std.mem.Allocator, migration_name: []const u8, up_migrat
     defer alloc.free(down_path);
 
     {
-        const up_file = try std.fs.openFileAbsolute(up_path, .{ .mode = .write_only });
-        defer up_file.close();
-        try up_file.writeAll(up_migration);
+        const up_file = try std.Io.Dir.openFileAbsolute(io, up_path, .{ .mode = .write_only });
+        defer up_file.close(io);
+        try up_file.writeStreamingAll(io, up_migration);
     }
     {
-        const down_file = try std.fs.openFileAbsolute(down_path, .{ .mode = .write_only });
-        defer down_file.close();
-        try down_file.writeAll(down_migration);
+        const down_file = try std.Io.Dir.openFileAbsolute(io, down_path, .{ .mode = .write_only });
+        defer down_file.close(io);
+        try down_file.writeStreamingAll(io, down_migration);
     }
 }
 
-fn make_tmp_dir() !void {
-    std.fs.makeDirAbsolute(TMP_DIR) catch |e| switch (e) {
+fn make_tmp_dir(io: std.Io) !void {
+    std.Io.Dir.createDirAbsolute(io, TMP_DIR, .default_dir) catch |e| switch (e) {
         error.PathAlreadyExists => {},
         else => return e,
     };
-    std.fs.makeDirAbsolute(MIGRATIONS_DIR) catch |e| switch (e) {
+    std.Io.Dir.createDirAbsolute(io, MIGRATIONS_DIR, .default_dir) catch |e| switch (e) {
         error.PathAlreadyExists => {},
         else => return e,
     };
-    const file = try std.fs.createFileAbsolute(DB_PATH, .{});
-    file.close();
+    const file = try std.Io.Dir.createFileAbsolute(io, DB_PATH, .{});
+    file.close(io);
 }
 
-fn cleanup() !void {
-    try std.fs.deleteTreeAbsolute(TMP_DIR);
+fn cleanup(io: std.Io) !void {
+    try std.Io.Dir.cwd().deleteTree(io, TMP_DIR);
 }
 
-pub fn main() !void {
-    try cleanup();
-    try make_tmp_dir();
+pub fn main(init: std.process.Init) !void {
+    try cleanup(init.io);
+    try make_tmp_dir(init.io);
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    const alloc = gpa.allocator();
-    defer {
-        if (gpa.deinit() == .leak) {
-            std.log.err("Memory leak detected", .{});
-        }
-    }
+    const alloc = init.gpa;
 
     std.log.debug("Running empty up", .{});
-    try up(alloc);
+    try up(alloc, init.io);
 
     std.log.debug("Creating Migrations Pair mig_1", .{});
-    try new_migration(alloc, "mig_1",
+    try new_migration(alloc, init.io, "mig_1",
         \\ CREATE TABLE Foo (col INTEGER PRIMARY KEY);
         \\ INSERT INTO Foo (col) VALUES (1);
     ,
@@ -87,19 +81,19 @@ pub fn main() !void {
     );
 
     std.log.debug("Running up for mig_1", .{});
-    try up(alloc);
+    try up(alloc, init.io);
 
     std.log.debug("Running check", .{});
-    try check(alloc);
+    try check(alloc, init.io);
 
     std.log.debug("Running down for mig_1", .{});
-    try down(alloc);
+    try down(alloc, init.io);
 
     std.log.debug("Running up for mig_1", .{});
-    try up(alloc);
+    try up(alloc, init.io);
 
     std.log.debug("Creating Migrations Pair mig_2", .{});
-    try new_migration(alloc, "mig_2",
+    try new_migration(alloc, init.io, "mig_2",
         \\ CREATE TABLE Bar (pol TEXT PRIMARY KEY);
         \\ INSERT INTO Bar (pol) VALUES ('FooBar');
     ,
@@ -107,13 +101,13 @@ pub fn main() !void {
         \\ DROP TABLE Bar;
     );
     std.log.debug("Running up for mig_2", .{});
-    try up(alloc);
+    try up(alloc, init.io);
     std.log.debug("Running Check", .{});
-    try check(alloc);
+    try check(alloc, init.io);
     std.log.debug("Running down", .{});
-    try down(alloc);
+    try down(alloc, init.io);
 
     std.log.debug("Running down", .{});
-    try cleanup();
+    try cleanup(init.io);
     std.log.debug("Test ran successfuly", .{});
 }

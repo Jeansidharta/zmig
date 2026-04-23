@@ -70,12 +70,13 @@ pub fn expectHashBuf(
 }
 
 pub fn expectHashFile(
-    migrationsDir: std.fs.Dir,
+    migrationsDir: std.Io.Dir,
     path: []const u8,
     hash: HashInt,
+    io: std.Io,
     alloc: Allocator,
 ) !bool {
-    const contents = try migrationsDir.readFileAlloc(alloc, path, 1024 * 1024 * 256);
+    const contents = try migrationsDir.readFileAlloc(io, path, alloc, .limited(1024 * 1024 * 256));
     defer alloc.free(contents);
     return expectHashBuf(contents, hash);
 }
@@ -84,11 +85,12 @@ pub fn expectHashFile(
 /// timestamp or the file extension. If the name is, for example, "migration_name", this
 /// function will look for <TIMESTAMP>-migration_name.<up|down>.sql
 pub fn hasMigrationWithName(
-    migrationDir: std.fs.Dir,
+    io: std.Io,
+    migrationDir: std.Io.Dir,
     name: []const u8,
 ) !bool {
     var iter = migrationDir.iterate();
-    while (try iter.next()) |entry| {
+    while (try iter.next(io)) |entry| {
         if (entry.kind != .file and entry.kind != .sym_link) continue;
 
         var entryNameIter = std.mem.splitAny(u8, entry.name, "-.");
@@ -151,6 +153,7 @@ pub fn openOrCreateDatabase(databasePath: [:0]const u8, diags: ?*sqlite.Diagnost
 }
 
 pub fn checkMatchingMigrations(
+    io: std.Io,
     rows: MigrationDbRows,
     files: MigrationFiles,
     stderr: *std.Io.Writer,
@@ -176,7 +179,7 @@ pub fn checkMatchingMigrations(
             return error.NonMatchingMigrations;
         }
         if (ignoreHashes) continue;
-        if (!try expectHashFile(migrationsDir, file.upFilename, dbRow.up_md5, files.alloc)) {
+        if (!try expectHashFile(migrationsDir, file.upFilename, dbRow.up_md5, io, files.alloc)) {
             try stderr.print(
                 "Migration \"{s}\" was modified since it was last applied\n",
                 .{file.upFilename},
@@ -184,7 +187,7 @@ pub fn checkMatchingMigrations(
             try stderr.flush();
             return error.NonMatchingMigrations;
         }
-        if (!try expectHashFile(migrationsDir, file.downFilename, dbRow.down_md5, files.alloc)) {
+        if (!try expectHashFile(migrationsDir, file.downFilename, dbRow.down_md5, io, files.alloc)) {
             try stderr.print(
                 "Migration \"{s}\" was modified since its up counterpart was applied\n",
                 .{file.name},

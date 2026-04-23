@@ -11,12 +11,13 @@ pub var options = struct {}{};
 
 pub fn run(
     alloc: Allocator,
+    io: std.Io,
     migrationsDirPath: []const u8,
     dbPath: [:0]const u8,
 ) !void {
-    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    var stderr_writer = std.Io.File.stderr().writer(io, &.{});
     const stderr = &stderr_writer.interface;
-    var stdout_writer = std.fs.File.stderr().writer(&.{});
+    var stdout_writer = std.Io.File.stderr().writer(io, &.{});
     const stdout = &stdout_writer.interface;
 
     var diags: sqlite.Diagnostics = .{};
@@ -50,7 +51,7 @@ pub fn run(
 
     try stdout.print("Looking for migrations at \"{s}\" directory...\n", .{migrationsDirPath});
     try stdout.flush();
-    var migrationsDir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
+    var migrationsDir = std.Io.Dir.cwd().openDir(io, migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print(
             "Failed to open migrations directory at path \"{s}\": {}\n",
             .{ migrationsDirPath, e },
@@ -58,14 +59,14 @@ pub fn run(
         try stderr.flush();
         return e;
     };
-    defer migrationsDir.close();
+    defer migrationsDir.close(io);
 
-    var files = try MigrationFiles.fromDir(alloc, migrationsDir, stderr);
+    var files = try MigrationFiles.fromDir(alloc, io, migrationsDir, stderr);
     defer files.deinit();
     const rows = try MigrationDbRows.fromDbOldestFirst(alloc, &db, stderr);
     defer rows.deinit();
 
-    try utils.checkMatchingMigrations(rows, files, stderr, false);
+    try utils.checkMatchingMigrations(io, rows, files, stderr, false);
 
     const remainingPairs = files.array.items.len - rows.migrations.len;
 

@@ -12,7 +12,7 @@ const IntermediaryMigrationFilePair = struct {
     upFilename: ?[]const u8,
     downFilename: ?[]const u8,
 
-    dir: std.fs.Dir,
+    dir: std.Io.Dir,
 
     pub fn intoMigrationFilePair(self: @This()) !MigrationFilePair {
         if (self.upFilename) |upFilename| {
@@ -30,7 +30,7 @@ const IntermediaryMigrationFilePair = struct {
 
     pub fn fromFileName(
         alloc: Allocator,
-        migrationDir: std.fs.Dir,
+        migrationDir: std.Io.Dir,
         entryName: []const u8,
         stderr: *std.Io.Writer,
     ) !@This() {
@@ -88,15 +88,16 @@ pub const MigrationFilePair = struct {
     upFilename: []const u8,
     downFilename: []const u8,
 
-    dir: std.fs.Dir,
+    dir: std.Io.Dir,
 
     pub fn execUp(
         self: @This(),
         alloc: Allocator,
+        io: std.Io,
         db: *sqlite.Db,
         stderr: *std.Io.Writer,
     ) !void {
-        const upContents = try self.readUp(alloc);
+        const upContents = try self.readUp(alloc, io);
         defer alloc.free(upContents);
 
         var sqliteDiags: sqlite.Diagnostics = .{};
@@ -109,17 +110,17 @@ pub const MigrationFilePair = struct {
             }
         };
 
-        const migration = try self.intoDbRow(alloc);
+        const migration = try self.intoDbRow(alloc, io);
         try migration.insertIntoDb(db, stderr);
         try db.exec("COMMIT TRANSACTION;", .{}, .{});
     }
 
-    pub fn readUp(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(alloc, self.upFilename, 1024 * 1024 * 256);
+    pub fn readUp(self: @This(), alloc: Allocator, io: std.Io) ![]const u8 {
+        return self.dir.readFileAlloc(io, self.upFilename, alloc, .limited(1024 * 1024 * 256));
     }
 
-    pub fn readDown(self: @This(), alloc: Allocator) ![]const u8 {
-        return self.dir.readFileAlloc(alloc, self.downFilename, 1024 * 1024 * 256);
+    pub fn readDown(self: @This(), alloc: Allocator, io: std.Io) ![]const u8 {
+        return self.dir.readFileAlloc(io, self.downFilename, alloc, .limited(1024 * 1024 * 256));
     }
 
     pub fn eqlNameAndTimestamp(self: @This(), row: DbRow) bool {
@@ -129,14 +130,15 @@ pub const MigrationFilePair = struct {
     pub fn intoDbRow(
         self: @This(),
         alloc: Allocator,
+        io: std.Io,
     ) !DbRow {
         const up_md5 = up_md5: {
-            const upContents = try self.readUp(alloc);
+            const upContents = try self.readUp(alloc, io);
             defer alloc.free(upContents);
             break :up_md5 utils.hashBuf(upContents);
         };
         const down_md5 = down_md5: {
-            const downContents = try self.readDown(alloc);
+            const downContents = try self.readDown(alloc, io);
             defer alloc.free(downContents);
             break :down_md5 utils.hashBuf(downContents);
         };
@@ -155,7 +157,7 @@ fn pairCompare(_: void, a: MigrationFilePair, b: MigrationFilePair) bool {
 
 /// This type is a wrapper around a PriorityQueue to allow for a clean deinit function
 pub const MigrationFiles = struct {
-    dir: std.fs.Dir,
+    dir: std.Io.Dir,
     array: std.ArrayList(MigrationFilePair),
     alloc: Allocator,
 
@@ -168,12 +170,12 @@ pub const MigrationFiles = struct {
     }
 
     /// Lists all migrations in the MigrationDir
-    pub fn fromDir(alloc: Allocator, migrationDir: std.fs.Dir, stderr: *std.Io.Writer) !@This() {
+    pub fn fromDir(alloc: Allocator, io: std.Io, migrationDir: std.Io.Dir, stderr: *std.Io.Writer) !@This() {
         var iter = migrationDir.iterate();
         var intermediaryArray = std.ArrayList(IntermediaryMigrationFilePair).empty;
         defer intermediaryArray.deinit(alloc);
 
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             if (entry.kind != .file and entry.kind != .sym_link) continue;
 
             // TODO - this line allocates memory. If this function return an error,

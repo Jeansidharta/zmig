@@ -12,17 +12,18 @@ pub var options = struct {
 
 pub fn run(
     alloc: Allocator,
+    io: std.Io,
     migrationsDirPath: []const u8,
 ) !struct { upFullName: []const u8, downFullName: []const u8 } {
     const migrationName = options.migrationName;
 
-    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    var stderr_writer = std.Io.File.stderr().writer(io, &.{});
     const stderr = &stderr_writer.interface;
 
-    var stdout_writer = std.fs.File.stderr().writer(&.{});
+    var stdout_writer = std.Io.File.stderr().writer(io, &.{});
     const stdout = &stdout_writer.interface;
 
-    var migrationsDir = std.fs.cwd().makeOpenPath(migrationsDirPath, .{ .iterate = true }) catch |e| {
+    var migrationsDir = std.Io.Dir.cwd().createDirPathOpen(io, migrationsDirPath, .{ .open_options = .{ .iterate = true } }) catch |e| {
         try stderr.print(
             "Failed to create migrations directory at path \"{s}\": {}",
             .{ migrationsDirPath, e },
@@ -30,9 +31,9 @@ pub fn run(
         try stderr.flush();
         return e;
     };
-    defer migrationsDir.close();
+    defer migrationsDir.close(io);
 
-    if (try utils.hasMigrationWithName(migrationsDir, migrationName)) {
+    if (try utils.hasMigrationWithName(io, migrationsDir, migrationName)) {
         try stderr.print("Migration with provided name {s} already exists.", .{migrationName});
         if (options.allowDuplicateName) {
             try stderr.writeAll(" Option allow-duplicate-name was provided. Ignoring...\n");
@@ -45,7 +46,7 @@ pub fn run(
     }
 
     // === Create Up and Down file names ===
-    const time = std.time.milliTimestamp();
+    const time = std.Io.Clock.real.now(io);
     const upFullName = try std.fmt.allocPrint(
         alloc,
         "{d}-{s}.up.sql",
@@ -59,7 +60,7 @@ pub fn run(
     );
     errdefer alloc.free(downFullName);
 
-    const upFile = migrationsDir.createFile(upFullName, .{}) catch |e| {
+    const upFile = migrationsDir.createFile(io, upFullName, .{}) catch |e| {
         try stderr.print(
             "Failed to create migration file at \"{s}/{s}\": {}",
             .{ migrationsDirPath, upFullName, e },
@@ -67,9 +68,9 @@ pub fn run(
         try stderr.flush();
         return e;
     };
-    defer upFile.close();
+    defer upFile.close(io);
 
-    const downFile = migrationsDir.createFile(downFullName, .{}) catch |e| {
+    const downFile = migrationsDir.createFile(io, downFullName, .{}) catch |e| {
         try stderr.print(
             "Failed to create migration file at \"{s}/{s}\": {}",
             .{ migrationsDirPath, downFullName, e },
@@ -77,13 +78,13 @@ pub fn run(
         try stderr.flush();
         return e;
     };
-    defer downFile.close();
+    defer downFile.close(io);
 
     // === Write header to up and down files ===
 
-    var up_writer = upFile.writer(&.{});
+    var up_writer = upFile.writer(io, &.{});
     const up = &up_writer.interface;
-    var down_writer = downFile.writer(&.{});
+    var down_writer = downFile.writer(io, &.{});
     const down = &down_writer.interface;
 
     try up.print("-- Up migration {s}\n", .{migrationName});

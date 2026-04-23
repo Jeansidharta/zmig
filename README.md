@@ -7,7 +7,16 @@ zmig will create, verify and manage all your migrations while developing your
 application. During deployment, zmig will make sure your production app will
 also run all newly introduced migrations on the production database.
 
-For zig v0.15.2
+For zig v0.16.0
+
+## ⚠️⚠️⚠️WARNING ⚠️⚠️⚠️
+
+The official zig-sqlite repository (https://github.com/vrischmann/zig-sqlite)
+does not yet support zig 0.16.0. Work is being done at
+https://github.com/vrischmann/zig-sqlite/pull/201
+
+For now, this project is using https://github.com/sam701/zig-cli which is a fork
+with the necessary changes for 0.16.0
 
 ## Installing
 

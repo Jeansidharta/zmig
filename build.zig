@@ -8,29 +8,31 @@ fn makeMigrationsFile(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) std.Build.LazyPath {
-    const generate_step = b.addRunArtifact(
-        b.addExecutable(.{
-            .name = "migration-generator",
-            // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
-            .use_llvm = true,
-            .root_module = b.createModule(.{
-                .target = target,
-                .optimize = optimize,
-                .root_source_file = b.path("./build/make-migrations-file.zig"),
-                .imports = &.{
-                    .{
-                        // Allows the migrations build module to access our utils functions
-                        .name = "utils",
-                        .module = b.createModule(.{
-                            .root_source_file = b.path("src/utils.zig"),
-                            .target = target,
-                            .optimize = optimize,
-                        }),
-                    },
-                },
-            }),
-        }),
-    );
+    const migrationsGeneratorModule = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("build/make-migrations-file.zig"),
+        .imports = &.{
+            .{
+                // Allows the migrations build module to access our utils functions
+                .name = "utils",
+                .module = b.createModule(.{
+                    .root_source_file = b.path("src/utils.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                }),
+            },
+        },
+    });
+
+    const migrationsGeneratorExecutable = b.addExecutable(.{
+        .name = "migration-generator",
+        // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
+        .use_llvm = true,
+        .root_module = migrationsGeneratorModule,
+    });
+
+    const generate_step = b.addRunArtifact(migrationsGeneratorExecutable);
 
     // Having a named WriteFiles step allows us to easily access
     // it later from upper modules (modules that import this one)

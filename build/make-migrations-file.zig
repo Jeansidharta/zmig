@@ -62,7 +62,7 @@ const Migrations = struct {
 };
 
 fn pairCompare(_: void, a: File, b: File) bool {
-    return std.ascii.orderIgnoreCase(a.name, b.name) == .lt;
+    return a.timestamp < b.timestamp;
 }
 
 const ParseFileNameError = error{
@@ -71,27 +71,26 @@ const ParseFileNameError = error{
     InvalidTimestamp,
 };
 
-pub fn main() !void {
-    var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena_state.deinit();
-    const alloc = arena_state.allocator();
+pub fn main(init: std.process.Init) !void {
+    const alloc = init.arena.allocator();
+    const io = init.io;
 
-    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    var stderr_writer = std.Io.File.stderr().writer(io, &.{});
     var stderr = &stderr_writer.interface;
 
-    const args = try std.process.argsAlloc(alloc);
+    const args = try init.minimal.args.toSlice(alloc);
     if (args.len != 3) @panic("Wrong number of arguments");
 
     const migrationsDirPath = args[1];
     const outputFilePath = args[2];
 
-    const outputFile = try std.fs.createFileAbsolute(outputFilePath, .{ .truncate = false });
-    defer outputFile.close();
+    const outputFile = try std.Io.Dir.createFileAbsolute(io, outputFilePath, .{ .truncate = false });
+    defer outputFile.close(io);
 
-    var outputWriter = outputFile.writer(&.{});
+    var outputWriter = outputFile.writer(io, &.{});
     var output = &outputWriter.interface;
 
-    const dir = std.fs.cwd().openDir(migrationsDirPath, .{ .iterate = true }) catch |e| {
+    const dir = std.Io.Dir.cwd().openDir(io, migrationsDirPath, .{ .iterate = true }) catch |e| {
         try stderr.print("Failed to open migrations directory: {t}\n", .{e});
         try stderr.flush();
         return e;
@@ -99,11 +98,11 @@ pub fn main() !void {
 
     var iter = dir.iterate();
     var files: Migrations = .{};
-    while (try iter.next()) |entry| {
+    while (try iter.next(io)) |entry| {
         if (!std.mem.endsWith(u8, entry.name, ".up.sql")) continue;
         const filename = try alloc.dupe(u8, entry.name);
         const parsed = try utils.parseFileName(filename);
-        const body = try dir.readFileAlloc(alloc, entry.name, 256 * 1024 * 1024);
+        const body = try dir.readFileAlloc(io, entry.name, alloc, .limited(256 * 1024 * 1024));
         const hash: HashInt = @bitCast(utils.hashBuf(body));
         try files.arr.append(alloc, .{
             .timestamp = parsed.timestamp,

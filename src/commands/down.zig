@@ -14,17 +14,18 @@ pub var options = struct {
 
 pub fn run(
     alloc: Allocator,
+    io: std.Io,
     migrationsDirPath: []const u8,
     dbPath: [:0]const u8,
 ) !void {
-    var stdout_writer = std.fs.File.stdout().writer(&.{});
+    var stdout_writer = std.Io.File.stdout().writer(io, &.{});
     const stdout = &stdout_writer.interface;
-    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    var stderr_writer = std.Io.File.stderr().writer(io, &.{});
     const stderr = &stderr_writer.interface;
 
     try stdout.print("Looking for migrations at \"{s}\" directory...\n", .{migrationsDirPath});
     try stdout.flush();
-    var migrationsDir = std.fs.cwd().makeOpenPath(migrationsDirPath, .{ .iterate = true }) catch |e| {
+    var migrationsDir = std.Io.Dir.cwd().createDirPathOpen(io, migrationsDirPath, .{ .open_options = .{ .iterate = true } }) catch |e| {
         try stderr.print(
             "Failed to create migrations directory at path \"{s}\": {}\n",
             .{ migrationsDirPath, e },
@@ -32,7 +33,7 @@ pub fn run(
         try stderr.flush();
         return e;
     };
-    defer migrationsDir.close();
+    defer migrationsDir.close(io);
 
     var diags: sqlite.Diagnostics = .{};
     var db = utils.openOrCreateDatabase(dbPath, &diags) catch |e| {
@@ -54,6 +55,7 @@ pub fn run(
     for (rows.migrations[0..numberOfMigrations]) |dbRow| {
         try dbRow.execDown(
             alloc,
+            io,
             migrationsDir,
             &db,
             options.ignoreHashDifferences,

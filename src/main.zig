@@ -13,11 +13,11 @@ var config = struct {
     migrationsDirPath: []const u8 = "migrations",
 }{};
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-var alloc = gpa.allocator();
+var alloc: std.mem.Allocator = undefined;
+var io: std.Io = undefined;
 
 fn runNew() !void {
-    const result = try commandNewMigration.run(alloc, config.migrationsDirPath);
+    const result = try commandNewMigration.run(alloc, io, config.migrationsDirPath);
     alloc.free(result.downFullName);
     alloc.free(result.upFullName);
 }
@@ -26,25 +26,29 @@ fn runUp() !void {
     const dbPath = try alloc.dupeZ(u8, config.dbPath);
     defer alloc.free(dbPath);
 
-    try commandUp.run(alloc, config.migrationsDirPath, dbPath);
+    try commandUp.run(alloc, io, config.migrationsDirPath, dbPath);
 }
 
 fn runDown() !void {
     const dbPath = try alloc.dupeZ(u8, config.dbPath);
     defer alloc.free(dbPath);
 
-    try commandDown.run(alloc, config.migrationsDirPath, dbPath);
+    try commandDown.run(alloc, io, config.migrationsDirPath, dbPath);
 }
 
 fn runCheck() !void {
     const dbPath = try alloc.dupeZ(u8, config.dbPath);
     defer alloc.free(dbPath);
 
-    try commandCheck.run(alloc, config.migrationsDirPath, dbPath);
+    try commandCheck.run(alloc, io, config.migrationsDirPath, dbPath);
 }
 
-pub fn main() !void {
-    var runner = try cli.AppRunner.init(alloc);
+pub fn main(init: std.process.Init) !void {
+    alloc = init.arena.allocator();
+    io = init.io;
+
+    var runner = cli.AppRunner.init(&init);
+
     const app = cli.App{
         .version = "0.0.1",
         .author = "jeansidharta@gmail.com",

@@ -4,12 +4,12 @@
     .fingerprint = 0x220e382987b2dc7,
     .dependencies = .{
         .sqlite = .{
-            .url = "git+https://github.com/vrischmann/zig-sqlite#6d90ee900d186a7fbb6066f28ee13beeaf8be345",
-            .hash = "sqlite-3.48.0-F2R_a5yODgDFvwwsytm7ZONcSqYBo3qv1PmXOtw3tqLA",
+            .url = "git+https://github.com/0xveya/zig-sqlite#82e4ced90a670ce780c69155470402a26f199529",
+            .hash = "sqlite-3.48.0-F2R_a7CUDgCiWBIVyV7v0P7aZv9RzcNAzsNkNg_5FieL",
         },
         .cli = .{
-            .url = "git+https://github.com/sam701/zig-cli?ref=zig-0.15#cb44aade25a3c1eddd8b6f990b50c2189442c1e2",
-            .hash = "cli-0.10.0-2eKe_5kEAQBeHqKxUHNTGnETzu81rqKWwT1WPt1jXBt0",
+            .url = "git+https://github.com/sam701/zig-cli#4841cdaed94b920c91ea171beed159976264270a",
+            .hash = "cli-0.10.0-2eKe_1sIAQDecE0Bz5gAm7aLcWz5wBAc8KxlP1YQPEWr",
         },
     },
     .paths = .{

@@ -13,7 +13,8 @@ pub const DbRow = struct {
     pub fn execDown(
         self: @This(),
         alloc: Allocator,
-        migrationsDir: std.fs.Dir,
+        io: std.Io,
+        migrationsDir: std.Io.Dir,
         db: *sqlite.Db,
         ignoreHash: bool,
         stdout: *std.Io.Writer,
@@ -27,9 +28,10 @@ pub const DbRow = struct {
         defer alloc.free(downFilename);
 
         const downMigration = try migrationsDir.readFileAlloc(
-            alloc,
+            io,
             downFilename,
-            256 * 1024 * 1024,
+            alloc,
+            .limited(256 * 1024 * 1024),
         );
         defer alloc.free(downMigration);
 
