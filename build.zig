@@ -1,5 +1,10 @@
 const std = @import("std");
 
+const host_machine: std.Build.ResolvedTarget = .{
+    .query = .{},
+    .result = @import("builtin").target,
+};
+
 /// This will invoke the `build/make-migrations-file.zig` script over all
 /// of the provided migrations, and return a LazyPath to a zig source
 /// file containing the result.
@@ -18,7 +23,8 @@ fn makeMigrationsFile(
                 .name = "utils",
                 .module = b.createModule(.{
                     .root_source_file = b.path("src/utils.zig"),
-                    .target = target,
+                    // NOTE: This module runs on the host as part of the build process, ie: not on the target
+                    .target = host_machine,
                     .optimize = optimize,
                 }),
             },
