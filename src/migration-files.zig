@@ -115,12 +115,14 @@ pub const MigrationFilePair = struct {
         try db.exec("COMMIT TRANSACTION;", .{}, .{});
     }
 
-    pub fn readUp(self: @This(), alloc: Allocator, io: std.Io) ![]const u8 {
-        return self.dir.readFileAlloc(io, self.upFilename, alloc, .limited(1024 * 1024 * 256));
+    pub fn readUp(self: @This(), alloc: Allocator, io: std.Io) ![:0]const u8 {
+        // IMPORTANT: The string HAS TO BE null terminated. The sqlite library does not check for null termination
+        return self.dir.readFileAllocOptions(io, self.upFilename, alloc, .limited(1024 * 1024 * 256), .of(u8), 0);
     }
 
-    pub fn readDown(self: @This(), alloc: Allocator, io: std.Io) ![]const u8 {
-        return self.dir.readFileAlloc(io, self.downFilename, alloc, .limited(1024 * 1024 * 256));
+    pub fn readDown(self: @This(), alloc: Allocator, io: std.Io) ![:0]const u8 {
+        // IMPORTANT: The string HAS TO BE null terminated. The sqlite library does not check for null termination
+        return self.dir.readFileAllocOptions(io, self.downFilename, alloc, .limited(1024 * 1024 * 256), .of(u8), 0);
     }
 
     pub fn eqlNameAndTimestamp(self: @This(), row: DbRow) bool {

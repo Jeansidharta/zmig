@@ -27,11 +27,14 @@ pub const DbRow = struct {
         );
         defer alloc.free(downFilename);
 
-        const downMigration = try migrationsDir.readFileAlloc(
+        const downMigration = try migrationsDir.readFileAllocOptions(
             io,
             downFilename,
             alloc,
             .limited(256 * 1024 * 1024),
+            .of(u8),
+            // IMPORTANT: The string HAS TO BE null terminated. The sqlite library does not check for null termination
+            0,
         );
         defer alloc.free(downMigration);
 

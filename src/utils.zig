@@ -190,7 +190,7 @@ pub fn checkMatchingMigrations(
         if (!try expectHashFile(migrationsDir, file.downFilename, dbRow.down_md5, io, files.alloc)) {
             try stderr.print(
                 "Migration \"{s}\" was modified since its up counterpart was applied\n",
-                .{file.name},
+                .{file.downFilename},
             );
             try stderr.flush();
             return error.NonMatchingMigrations;
