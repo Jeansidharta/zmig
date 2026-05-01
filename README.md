@@ -47,8 +47,6 @@ with the necessary changes for 0.16.0
        const zmig_cli = b.addRunArtifact(
            b.addExecutable(.{
                .root_module = zmig.module("zmig-cli"),
-               // Enabled due to https://github.com/vrischmann/zig-sqlite/issues/195
-               .use_llvm = true,
                .name = "zmig-cli",
            }),
        );
