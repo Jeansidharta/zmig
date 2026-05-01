@@ -5,8 +5,8 @@ const Allocator = std.mem.Allocator;
 const digest_length = std.crypto.hash.Md5.digest_length;
 pub const HashInt = std.meta.Int(.unsigned, digest_length * 8);
 
-const MigrationDbRows = @import("./migration-db-rows.zig").MigrationDbRows;
-const MigrationFiles = @import("./migration-files.zig").MigrationFiles;
+const MigrationDbRows = @import("migration-db-rows.zig").MigrationDbRows;
+const MigrationFiles = @import("migration-files.zig").MigrationFiles;
 
 const ParseFileNameError = error{
     MissingTimestamp,
