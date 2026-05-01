@@ -47,7 +47,17 @@ pub fn main(init: std.process.Init) !void {
     alloc = init.arena.allocator();
     io = init.io;
 
-    var runner = cli.AppRunner.init(&init);
+    var runner = cli.AppRunner.init(&.{
+        // Force cli to use the arena allocator
+        // This is due to my inability to properly clean up the memory allocated by this library.
+        // So, I'm brute-forcing it by giving it an arena allocator.
+        .gpa = init.arena.allocator(),
+        .arena = init.arena,
+        .environ_map = init.environ_map,
+        .minimal = init.minimal,
+        .preopens = init.preopens,
+        .io = init.io,
+    });
 
     const app = cli.App{
         .version = "0.0.1",
@@ -58,7 +68,7 @@ pub fn main(init: std.process.Init) !void {
                 .one_line = "Manage sqlite migrations",
                 .detailed = "Zig Migration Manager allows you to easily create, apply and remove migrations on your SQLite database.",
             },
-            .options = try runner.allocOptions(&.{
+            .options = &.{
                 cli.Option{
                     .long_name = "database",
                     .short_alias = 'd',
@@ -76,13 +86,13 @@ pub fn main(init: std.process.Init) !void {
                     .value_name = "MIGRATIONS-DIR",
                     .value_ref = runner.mkRef(&config.migrationsDirPath),
                 },
-            }),
+            },
             .target = .{
-                .subcommands = try runner.allocCommands(&.{
+                .subcommands = &.{
                     cli.Command{
                         .name = "new",
                         .description = .{ .one_line = "Creates a new migration file" },
-                        .options = try runner.allocOptions(&.{
+                        .options = &.{
                             cli.Option{
                                 .long_name = "description",
                                 .help = "A short description to the migration",
@@ -95,17 +105,17 @@ pub fn main(init: std.process.Init) !void {
                                 .envvar = "ZMIG_ALLOW_DUPLICATE_NAME",
                                 .value_ref = runner.mkRef(&commandNewMigration.options.allowDuplicateName),
                             },
-                        }),
+                        },
                         .target = .{
                             .action = .{
                                 .positional_args = .{
-                                    .required = try runner.allocPositionalArgs(&.{
+                                    .required = &.{
                                         cli.PositionalArg{
                                             .name = "migration_name",
                                             .help = "A short migration name",
                                             .value_ref = runner.mkRef(&commandNewMigration.options.migrationName),
                                         },
-                                    }),
+                                    },
                                 },
                                 .exec = runNew,
                             },
@@ -114,7 +124,7 @@ pub fn main(init: std.process.Init) !void {
                     cli.Command{
                         .name = "up",
                         .description = .{ .one_line = "Runs the up migrations" },
-                        .options = try runner.allocOptions(&.{
+                        .options = &.{
                             cli.Option{
                                 .long_name = "count",
                                 .short_alias = 'c',
@@ -126,7 +136,7 @@ pub fn main(init: std.process.Init) !void {
                                 .help = "Whether to ignore hash differences in migration files. Defalt: false",
                                 .value_ref = runner.mkRef(&commandUp.options.ignoreHashDifferences),
                             },
-                        }),
+                        },
                         .target = .{
                             .action = .{
                                 .exec = runUp,
@@ -136,7 +146,7 @@ pub fn main(init: std.process.Init) !void {
                     cli.Command{
                         .name = "down",
                         .description = .{ .one_line = "Runs the down migrations" },
-                        .options = try runner.allocOptions(&.{
+                        .options = &.{
                             cli.Option{
                                 .long_name = "count",
                                 .short_alias = 'c',
@@ -148,7 +158,7 @@ pub fn main(init: std.process.Init) !void {
                                 .help = "Whether to ignore hash differences in migration files. Defalt: false",
                                 .value_ref = runner.mkRef(&commandDown.options.ignoreHashDifferences),
                             },
-                        }),
+                        },
                         .target = .{
                             .action = .{
                                 .exec = runDown,
@@ -171,20 +181,20 @@ pub fn main(init: std.process.Init) !void {
                             \\If there are any migrations that have not yet been applied, list them
                             ,
                         },
-                        .options = try runner.allocOptions(&.{}),
+                        .options = &.{},
                         .target = .{
                             .action = .{
                                 .exec = runCheck,
                             },
                         },
                     },
-                }),
+                },
             },
         },
     };
-    // For some reason, the application segfaults when deiniting the runner.
-    // It'd be good to investigate why, but for now, leaking this is no big deal.
-    // defer runner.deinit();
-
-    _ = runner.run(&app) catch {};
+    if (@import("builtin").mode == .Debug) {
+        return runner.run(&app);
+    } else {
+        _ = runner.run(&app) catch {};
+    }
 }
